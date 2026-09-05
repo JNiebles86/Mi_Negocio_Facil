@@ -1859,7 +1859,21 @@ if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
   });
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    window.location.reload();
+  });
 }
+
+document.getElementById('btn-actualizar-app').addEventListener('click', async ()=>{
+  toast('Buscando actualizaciones… 🔄');
+  try{
+    if('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if(reg) await reg.update();
+    }
+  }catch(e){ /* si falla, igual recargamos abajo */ }
+  setTimeout(()=> window.location.reload(), 600);
+});
 
 /* ================= BOOT ================= */
 onAuthStateChanged(auth, async (user)=>{
