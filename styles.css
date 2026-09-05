@@ -83,9 +83,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .topbar{
   display:flex;align-items:center;gap:12px;
   background:var(--azul);color:#fff;
-  padding:16px 68px 16px 18px;
+  padding:16px 18px;
   padding-top:calc(16px + env(safe-area-inset-top,0px));
 }
+.topbar-fab{margin-left:auto;}
 .topbar-logo{width:38px;height:38px;border-radius:10px;}
 .topbar-text{display:flex;flex-direction:column;}
 .topbar-text strong{font-size:15px;}
@@ -278,12 +279,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .nav-btn span{font-size:18px;}
 .nav-btn.active{color:var(--verde);}
 .nav-btn-center{
-  position:fixed;top:calc(13px + env(safe-area-inset-top,0px));right:16px;z-index:60;
   background:var(--verde);color:#fff;border-radius:50%;
   width:44px;height:44px;flex:none;box-shadow:0 4px 10px rgba(40,180,99,0.45);
   justify-content:center;align-items:center;
 }
 .nav-btn-center span{font-size:21px;}
+/* en celular el botón + vive dentro de la barra azul superior, no en la barra inferior */
+.bottom-nav .nav-btn-center{display:none;}
 .nav-btn-center.active{color:#fff;}
 .nav-label{display:none;}
 
@@ -337,14 +339,15 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   .nav-btn span{font-size:18px;}
   .nav-btn:hover{background:var(--gris-fondo);}
   .nav-btn.active{background:var(--verde);color:#fff;}
-  .nav-btn-center{
-    position:static;top:auto;right:auto;z-index:auto;
+  .bottom-nav .nav-btn-center{
+    display:flex;
     order:2;width:auto;height:auto;border-radius:10px;margin-top:0;margin-bottom:0;
     justify-content:flex-start;box-shadow:none;padding:11px 14px;
     background:none;color:var(--gris-texto);
   }
-  .nav-btn-center span{font-size:18px;}
-  .nav-btn-center .nav-label{display:inline;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;}
+  .bottom-nav .nav-btn-center span{font-size:18px;}
+  .bottom-nav .nav-btn-center .nav-label{display:inline;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;}
+  .topbar-fab{display:none;}
 
   /* orden de la barra lateral: Inicio, Registrar, Registro, Inventario, Cuentas, Finanzas, Perfil, Aprenda */
   .bottom-nav [data-view="inicio"]{order:1;}
