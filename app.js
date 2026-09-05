@@ -145,13 +145,20 @@ document.querySelectorAll('.period-tabs').forEach(group=>{
   });
 });
 
-document.querySelectorAll('#negocio-tabs .tab').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    document.querySelectorAll('#negocio-tabs .tab').forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    document.querySelectorAll('.tab-panel').forEach(p=>p.hidden = (p.id !== 'tab-'+tab.dataset.tab));
+function wireTabs(tabsId){
+  const tabsEl = document.getElementById(tabsId);
+  if(!tabsEl) return;
+  const scope = tabsEl.closest('section') || document;
+  tabsEl.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      scope.querySelectorAll('.tab-panel').forEach(p=>p.hidden = (p.id !== 'tab-'+tab.dataset.tab));
+    });
   });
-});
+}
+wireTabs('negocio-tabs');
+wireTabs('cuentas-tabs');
 
 /* ---------- Modales ---------- */
 const backdrop = document.getElementById('modal-backdrop');
@@ -431,6 +438,7 @@ function prepararModalVenta(){
   document.getElementById('v-precio').value = '';
   document.getElementById('v-cliente').value = '';
   document.getElementById('v-tipo').value = 'contado';
+  document.getElementById('v-plazo').value = 30;
   document.getElementById('v-descuento').value = 0;
   document.getElementById('v-iva').value = 0;
   actualizarTipoVenta();
@@ -440,6 +448,7 @@ function actualizarTipoVenta(){
   const esCredito = document.getElementById('v-tipo').value === 'credito';
   document.getElementById('v-pago-label').hidden = esCredito;
   document.getElementById('v-credito-aviso').hidden = !esCredito;
+  document.getElementById('v-plazo-label').hidden = !esCredito;
 }
 document.getElementById('v-tipo').addEventListener('change', actualizarTipoVenta);
 document.getElementById('v-producto').addEventListener('change', (e)=>{
@@ -538,6 +547,12 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
 
   const t = totalesCarritoVenta();
   DB.negocio.consecutivoFactura = (DB.negocio.consecutivoFactura||0) + 1;
+  let fechaVencimiento = null;
+  if(tipoVenta==='credito'){
+    const plazoDias = Number(document.getElementById('v-plazo').value)||30;
+    const vto = new Date(); vto.setDate(vto.getDate()+plazoDias);
+    fechaVencimiento = vto.toISOString();
+  }
   const venta = {
     id: uid(),
     numeroFactura: DB.negocio.consecutivoFactura,
@@ -546,6 +561,7 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
     tipoVenta,
     metodoPago: tipoVenta==='contado' ? document.getElementById('v-pago').value : null,
     pagada: tipoVenta==='contado',
+    fechaVencimiento,
     items: carritoVenta.slice(),
     descuentoPct: t.descPct,
     ivaPct: t.ivaPct,
@@ -578,11 +594,17 @@ function abrirModalCompra(compra){
   document.getElementById('co-costo').value = '';
   document.getElementById('co-proveedor').value = compra?.proveedorId || '';
   document.getElementById('co-numero-factura').value = compra?.numeroFacturaProveedor || '';
+  document.getElementById('co-tipo').value = compra?.tipoCompra || 'contado';
+  actualizarTipoCompra();
   document.getElementById('compra-modal-titulo').textContent = compra ? '🧾 Editar compra' : '🧾 Registrar compra';
   document.getElementById('compra-submit-btn').textContent = compra ? 'Guardar cambios' : 'Guardar compra';
   renderCarritoCompra();
   openModal('compra');
 }
+function actualizarTipoCompra(){
+  document.getElementById('co-credito-aviso').hidden = document.getElementById('co-tipo').value !== 'credito';
+}
+document.getElementById('co-tipo').addEventListener('change', actualizarTipoCompra);
 
 function renderCarritoCompra(){
   const cont = document.getElementById('co-carrito-lista');
@@ -648,6 +670,8 @@ document.getElementById('form-compra').addEventListener('submit', (e)=>{
     });
     compra.proveedorId = proveedorId;
     compra.numeroFacturaProveedor = document.getElementById('co-numero-factura').value.trim();
+    compra.tipoCompra = document.getElementById('co-tipo').value;
+    if(compra.tipoCompra==='contado') compra.pagada = true;
     compra.items = carritoCompra.slice();
     compra.total = carritoCompra.reduce((a,it)=>a+it.total,0);
   } else {
@@ -655,11 +679,14 @@ document.getElementById('form-compra').addEventListener('submit', (e)=>{
       const producto = DB.productos.find(p=>p.id===it.productoId);
       if(producto) producto.cantidad = producto.cantidad + it.cantidad;
     });
+    const tipoCompra = document.getElementById('co-tipo').value;
     DB.compras.push({
       id: uid(),
       fecha: new Date().toISOString(),
       proveedorId,
       numeroFacturaProveedor: document.getElementById('co-numero-factura').value.trim(),
+      tipoCompra,
+      pagada: tipoCompra==='contado',
       items: carritoCompra.slice(),
       total: carritoCompra.reduce((a,it)=>a+it.total,0)
     });
@@ -695,9 +722,10 @@ function renderCompras(){
   }
   cont.innerHTML = comprasOrdenadas.map(c=>{
     const proveedor = DB.proveedores.find(pr=>pr.id===c.proveedorId);
+    const esCreditoPendiente = c.tipoCompra==='credito' && !c.pagada;
     return `<div class="list-item">
       <div class="li-main">
-        <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}${c.numeroFacturaProveedor ? ` <span class="li-sub">(${escapeHtml(c.numeroFacturaProveedor)})</span>` : ''}</span>
+        <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}${c.numeroFacturaProveedor ? ` <span class="li-sub">(${escapeHtml(c.numeroFacturaProveedor)})</span>` : ''}${esCreditoPendiente ? '<span class="badge-estado">Por pagar</span>' : ''}</span>
         <span class="li-sub">${fmtDate(c.fecha)} · ${(c.items||[]).length} producto(s)</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
@@ -717,6 +745,85 @@ document.getElementById('lista-compras').addEventListener('click', (e)=>{
   if(btn.dataset.accion==='editar-compra') editarCompra(id);
   if(btn.dataset.accion==='eliminar-compra') eliminarCompra(id);
 });
+
+/* ================= CUENTAS POR PAGAR ================= */
+function marcarCompraPagada(id){
+  const compra = DB.compras.find(c=>c.id===id);
+  if(!compra) return;
+  compra.pagada = true;
+  saveDB();
+  renderAll();
+  toast('Cuenta marcada como pagada ✅');
+}
+
+function renderPorPagar(){
+  const cont = document.getElementById('lista-por-pagar');
+  const pendientes = DB.compras
+    .filter(c=>c.tipoCompra==='credito' && !c.pagada)
+    .sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  if(pendientes.length===0){
+    cont.innerHTML = '<div class="empty-state">No tienes cuentas por pagar pendientes 🎉</div>';
+    return;
+  }
+  cont.innerHTML = pendientes.map(c=>{
+    const proveedor = DB.proveedores.find(pr=>pr.id===c.proveedorId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}</span>
+        <span class="li-sub">${fmtDate(c.fecha)}${c.numeroFacturaProveedor ? ` · ${escapeHtml(c.numeroFacturaProveedor)}` : ''}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="li-value neg">${money(c.total)}</span>
+        <button data-accion="marcar-compra-pagada" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+document.getElementById('lista-por-pagar').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion="marcar-compra-pagada"]');
+  if(btn) marcarCompraPagada(btn.dataset.id);
+});
+
+/* ================= CARTERA ================= */
+function renderCartera(){
+  const hoy = new Date();
+  let vigente = 0, vencida = 0;
+  const vencidasPorCliente = {};
+  DB.ventas.filter(v=>v.tipoVenta==='credito' && !v.pagada && !v.anulada).forEach(v=>{
+    const estaVencida = v.fechaVencimiento && new Date(v.fechaVencimiento) < hoy;
+    if(estaVencida){
+      vencida += v.total;
+      vencidasPorCliente[v.clienteId] = (vencidasPorCliente[v.clienteId]||0) + v.total;
+    } else {
+      vigente += v.total;
+    }
+  });
+  document.getElementById('cartera-vigente').textContent = money(vigente);
+  document.getElementById('cartera-vencida').textContent = money(vencida);
+  document.getElementById('cartera-total').textContent = money(vigente+vencida);
+
+  const cont = document.getElementById('lista-cartera-vencida');
+  const filas = Object.entries(vencidasPorCliente);
+  if(filas.length===0){
+    cont.innerHTML = '<div class="empty-state">No tienes cartera vencida 🎉</div>';
+    return;
+  }
+  cont.innerHTML = filas.map(([clienteId,saldo])=>{
+    const cliente = DB.clientes.find(c=>c.id===clienteId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(cliente?.nombres || cliente?.nombre || '(sin nombre)')}</span>
+      </div>
+      <span class="li-value neg">${money(saldo)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderCuentas(){
+  renderDeudores();
+  renderPorPagar();
+  renderCartera();
+}
 
 /* ================= AJUSTES DE INVENTARIO ================= */
 function abrirModalAjuste(){
@@ -1230,7 +1337,6 @@ function renderFinanzas(){
     </div>`).join('') : '<div class="empty-state">Todavía no hay ventas este mes</div>';
 
   renderMetas();
-  renderDeudores();
   renderGastos();
   renderCompras();
 }
@@ -1288,17 +1394,19 @@ function verDeudaCliente(clienteId){
   if(!cliente) return;
   const ventasCredito = DB.ventas.filter(v=>v.clienteId===clienteId && v.tipoVenta==='credito' && !v.pagada && !v.anulada);
   document.getElementById('detalle-titulo').textContent = `Deuda de ${cliente.nombres||cliente.nombre||''}`;
-  document.getElementById('detalle-body').innerHTML = ventasCredito.length ? ventasCredito.map(v=>`
-    <div class="list-item">
+  document.getElementById('detalle-body').innerHTML = ventasCredito.length ? ventasCredito.map(v=>{
+    const vencida = v.fechaVencimiento && new Date(v.fechaVencimiento) < new Date();
+    return `<div class="list-item">
       <div class="li-main">
-        <span class="li-title">${escapeHtml(v.descripcion)}</span>
-        <span class="li-sub">${fmtDate(v.fecha)}</span>
+        <span class="li-title">Factura No. ${v.numeroFactura}</span>
+        <span class="li-sub">${fmtDate(v.fecha)}${v.fechaVencimiento ? ` · Vence: ${fmtDate(v.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        <span class="li-value">${money(v.total)}</span>
+        <span class="li-value ${vencida?'neg':''}">${money(v.total)}</span>
         <button data-accion="marcar-pagada" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
       </div>
-    </div>`).join('') : '<div class="empty-state">Sin deudas pendientes</div>';
+    </div>`;
+  }).join('') : '<div class="empty-state">Sin deudas pendientes</div>';
   openModal('detalle');
 }
 
@@ -1569,6 +1677,7 @@ function renderAll(){
   renderKardex();
   renderFinanzas();
   renderFacturas();
+  renderCuentas();
   renderPerfil();
 }
 

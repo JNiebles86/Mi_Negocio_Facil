@@ -272,9 +272,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 }
 .nav-btn{
   background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:2px;
-  font-size:10px;font-weight:700;color:var(--gris-texto);cursor:pointer;padding:4px 6px;flex:1;
+  font-size:9.5px;font-weight:700;color:var(--gris-texto);cursor:pointer;padding:4px 2px;flex:1;
+  min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
 }
-.nav-btn span{font-size:19px;}
+.nav-btn span{font-size:18px;}
 .nav-btn.active{color:var(--verde);}
 .nav-btn-center{
   background:var(--verde);color:#fff;border-radius:50%;
@@ -342,12 +343,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   }
   .nav-btn-center .nav-label{display:inline;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;}
 
-  /* orden de la barra lateral: Inicio, Registrar, Mi negocio, Finanzas, Perfil, Aprenda */
+  /* orden de la barra lateral: Inicio, Registrar, Registro, Inventario, Cuentas, Finanzas, Perfil, Aprenda */
   .bottom-nav [data-view="inicio"]{order:1;}
   .bottom-nav [data-view="negocio"]{order:3;}
-  .bottom-nav [data-view="finanzas"]{order:4;}
-  .bottom-nav [data-view="perfil"]{order:5;}
-  .bottom-nav [data-view="aprenda"]{order:6;}
+  .bottom-nav [data-view="inventario"]{order:4;}
+  .bottom-nav [data-view="cuentas"]{order:5;}
+  .bottom-nav [data-view="finanzas"]{order:6;}
+  .bottom-nav [data-view="perfil"]{order:7;}
+  .bottom-nav [data-view="aprenda"]{order:8;}
 
   .modal-backdrop{align-items:center;}
   .modal{width:100%;max-width:560px;border-radius:20px;max-height:85vh;}

@@ -186,7 +186,6 @@
           <button class="tab active" data-tab="productos">📦 Productos</button>
           <button class="tab" data-tab="clientes">👥 Clientes</button>
           <button class="tab" data-tab="proveedores">🚚 Proveedores</button>
-          <button class="tab" data-tab="kardex">📋 Kardex</button>
         </div>
 
         <div id="tab-productos" class="tab-panel">
@@ -207,17 +206,48 @@
           <div id="lista-proveedores" class="list"></div>
         </div>
 
-        <div id="tab-kardex" class="tab-panel" hidden>
-          <label>Producto
-            <select id="kardex-producto"></select>
-          </label>
-          <button class="btn btn-secondary btn-block" data-open="ajuste">⚖️ Registrar ajuste de inventario</button>
-          <div class="finance-rows" style="margin-top:12px;">
-            <div class="finance-row"><span>Existencia actual</span><strong id="kardex-saldo-actual">0</strong></div>
+      </section>
+
+      <!-- INVENTARIO -->
+      <section id="view-inventario" class="view" hidden>
+        <h2>Inventario</h2>
+        <label>Producto
+          <select id="kardex-producto"></select>
+        </label>
+        <button class="btn btn-secondary btn-block" data-open="ajuste">⚖️ Registrar ajuste de inventario</button>
+        <div class="finance-rows" style="margin-top:12px;">
+          <div class="finance-row"><span>Existencia actual</span><strong id="kardex-saldo-actual">0</strong></div>
+        </div>
+        <h3 class="section-title">Movimientos (Kardex)</h3>
+        <p style="font-size:11px;color:var(--gris-texto);">Aquí verás las entradas (compras), salidas (ventas) y ajustes registrados desde que empezaste a usar este módulo.</p>
+        <div id="kardex-lista" class="list"></div>
+      </section>
+
+      <!-- CUENTAS -->
+      <section id="view-cuentas" class="view" hidden>
+        <h2>Cuentas</h2>
+        <div class="tabs" id="cuentas-tabs">
+          <button class="tab active" data-tab="cobrar">🧾 Por cobrar</button>
+          <button class="tab" data-tab="pagar">🧾 Por pagar</button>
+          <button class="tab" data-tab="cartera">📊 Cartera</button>
+        </div>
+
+        <div id="tab-cobrar" class="tab-panel">
+          <div id="lista-deudores" class="list"></div>
+        </div>
+
+        <div id="tab-pagar" class="tab-panel" hidden>
+          <div id="lista-por-pagar" class="list"></div>
+        </div>
+
+        <div id="tab-cartera" class="tab-panel" hidden>
+          <div class="finance-rows">
+            <div class="finance-row"><span>✅ Cartera vigente</span><strong id="cartera-vigente">$0</strong></div>
+            <div class="finance-row"><span>⚠️ Cartera vencida</span><strong id="cartera-vencida">$0</strong></div>
+            <div class="finance-row finance-total"><span>Total por cobrar</span><strong id="cartera-total">$0</strong></div>
           </div>
-          <h3 class="section-title">Movimientos</h3>
-          <p style="font-size:11px;color:var(--gris-texto);">Aquí verás las entradas (compras), salidas (ventas) y ajustes registrados desde que empezaste a usar este módulo.</p>
-          <div id="kardex-lista" class="list"></div>
+          <h3 class="section-title">Clientes con cartera vencida</h3>
+          <div id="lista-cartera-vencida" class="list"></div>
         </div>
       </section>
 
@@ -266,9 +296,7 @@
         <div id="lista-metas" class="list"></div>
         <button class="btn btn-secondary btn-block" id="btn-nueva-meta">+ Nueva meta</button>
 
-        <h3 class="section-title">🧾 Cuentas por cobrar</h3>
-        <div id="lista-deudores" class="list"></div>
-        <button class="btn btn-secondary btn-block" id="btn-cierre-caja" style="margin-top:10px;">📋 Cierre de caja de hoy</button>
+        <button class="btn btn-secondary btn-block" id="btn-cierre-caja">📋 Cierre de caja de hoy</button>
 
         <h3 class="section-title">🧾 Facturas recientes</h3>
         <div id="lista-facturas" class="list"></div>
@@ -387,8 +415,8 @@
           <p>Ve al botón <strong>➕ (Registrar) → Registrar venta</strong>, elige un producto o escribe una descripción libre, indica cantidad y precio, y si fue de <strong>contado</strong> (efectivo, transferencia o tarjeta) o a <strong>crédito</strong>. Las ventas a crédito necesitan un cliente y quedan como cuenta por cobrar. El inventario se descuenta solo si eliges un producto.</p>
         </details>
         <details class="learn-item">
-          <summary>🧾 Cuentas por cobrar y cierre de caja</summary>
-          <p>En <strong>Finanzas</strong> verás el listado de clientes que te deben (ventas a crédito sin pagar, con opción de marcarlas como pagadas) y un botón para ver el <strong>cierre de caja del día</strong>, con el total de ventas de contado y a crédito separados.</p>
+          <summary>🧾 Cuentas por cobrar, por pagar y cierre de caja</summary>
+          <p>En <strong>Cuentas</strong> verás el listado de clientes que te deben, tus compras pendientes de pago a proveedores y un resumen de cartera vencida. En <strong>Finanzas</strong> encuentras el botón para ver el <strong>cierre de caja del día</strong>, con el total de ventas de contado y a crédito separados.</p>
         </details>
         <details class="learn-item">
           <summary>🧾 Registrar un gasto</summary>
@@ -396,7 +424,7 @@
         </details>
         <details class="learn-item">
           <summary>📦 Controlar tu inventario</summary>
-          <p>En <strong>Registro → Productos</strong> agrega cada producto con su cantidad y una cantidad mínima. La app te avisa en Inicio cuando un producto está por agotarse.</p>
+          <p>En <strong>Registro → Productos</strong> agrega cada producto con su cantidad y una cantidad mínima. La app te avisa en Inicio cuando un producto está por agotarse. En <strong>Inventario</strong> puedes ver el Kardex de movimientos y registrar ajustes manuales.</p>
         </details>
         <details class="learn-item">
           <summary>👥 Clientes y 🚚 proveedores</summary>
@@ -465,6 +493,8 @@
     <nav class="bottom-nav">
       <button class="nav-btn active" data-view="inicio"><span>🏠</span>Inicio</button>
       <button class="nav-btn" data-view="negocio"><span>💼</span>Registro</button>
+      <button class="nav-btn" data-view="inventario"><span>📦</span>Inventario</button>
+      <button class="nav-btn" data-view="cuentas"><span>💳</span>Cuentas</button>
       <button class="nav-btn nav-btn-center" data-view="registrar"><span>➕</span><span class="nav-label" id="nav-label-registrar">Registrar</span></button>
       <button class="nav-btn" data-view="finanzas"><span>📊</span>Finanzas</button>
       <button class="nav-btn" data-view="perfil"><span>👤</span>Perfil</button>
@@ -516,6 +546,9 @@
           </select>
         </label>
         <p class="info-box" id="v-credito-aviso" hidden>Esta venta quedará registrada como cuenta por cobrar a nombre del cliente elegido.</p>
+        <label id="v-plazo-label" hidden>Plazo de pago (días)
+          <input type="number" id="v-plazo" min="1" value="30">
+        </label>
         <div class="item-form-row">
           <label>Descuento (%)
             <input type="number" id="v-descuento" min="0" max="100" step="0.01" value="0">
@@ -560,6 +593,13 @@
         <label>N.° de factura del proveedor (opcional)
           <input type="text" id="co-numero-factura" placeholder="Ej: FV-00123">
         </label>
+        <label>Tipo de compra
+          <select id="co-tipo">
+            <option value="contado">Contado</option>
+            <option value="credito">Crédito</option>
+          </select>
+        </label>
+        <p class="info-box" id="co-credito-aviso" hidden>Esta compra quedará registrada como cuenta por pagar al proveedor elegido.</p>
         <div class="modal-total">Total: <strong id="co-total">$0</strong></div>
         <button type="submit" id="compra-submit-btn" class="btn btn-primary btn-block btn-lg">Guardar compra</button>
       </form>
