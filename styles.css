@@ -339,7 +339,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
     order:2;width:auto;height:auto;border-radius:10px;margin-top:0;margin-bottom:0;
     justify-content:flex-start;box-shadow:none;padding:11px 14px;
   }
-  .nav-btn-center .nav-label{display:inline;font-size:13.5px;font-weight:700;}
+  .nav-btn-center .nav-label{display:inline;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;}
 
   /* orden de la barra lateral: Inicio, Registrar, Mi negocio, Finanzas, Perfil, Aprenda */
   .bottom-nav [data-view="inicio"]{order:1;}

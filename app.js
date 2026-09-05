@@ -1375,8 +1375,11 @@ function renderPerfil(){
 }
 
 function renderTopbar(){
-  document.getElementById('tb-negocio').textContent = DB.negocio?.nombre || 'Mi negocio';
+  const nombreNegocio = DB.negocio?.nombre || 'Mi negocio';
+  document.getElementById('tb-negocio').textContent = nombreNegocio;
   document.getElementById('tb-fecha').textContent = new Date().toLocaleDateString('es-CO', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('nav-label-registrar').textContent = DB.negocio?.nombre || 'Registrar';
+  document.getElementById('registrar-titulo').textContent = DB.negocio?.nombre || 'Registrar';
 }
 
 function renderAll(){

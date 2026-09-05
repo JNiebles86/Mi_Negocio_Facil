@@ -1,5 +1,5 @@
 /* Mi Negocio Fácil - service worker: caché para que funcione sin conexión */
-const CACHE_NAME = 'mnf-cache-v11';
+const CACHE_NAME = 'mnf-cache-v12';
 const ASSETS = [
   './',
   './index.html',

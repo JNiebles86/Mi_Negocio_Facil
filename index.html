@@ -181,7 +181,7 @@
 
       <!-- MI NEGOCIO -->
       <section id="view-negocio" class="view" hidden>
-        <h2>Mi negocio</h2>
+        <h2>Registro</h2>
         <div class="tabs" id="negocio-tabs">
           <button class="tab active" data-tab="productos">📦 Productos</button>
           <button class="tab" data-tab="clientes">👥 Clientes</button>
@@ -223,7 +223,7 @@
 
       <!-- REGISTRAR -->
       <section id="view-registrar" class="view" hidden>
-        <h2>Registrar</h2>
+        <h2 id="registrar-titulo">Registrar</h2>
         <p class="subtitle">¿Qué quieres registrar?</p>
         <div class="register-grid">
           <button class="action-card" data-open="venta"><span class="action-icon icon-green">💰</span><span class="action-label">Registrar venta</span></button>
@@ -378,7 +378,7 @@
         <h3 class="section-title">Cómo funciona la app</h3>
         <details class="learn-item">
           <summary>💰 Registrar una venta</summary>
-          <p>Ve a <strong>Registrar → Registrar venta</strong>, elige un producto o escribe una descripción libre, indica cantidad y precio, y si fue de <strong>contado</strong> (efectivo, transferencia o tarjeta) o a <strong>crédito</strong>. Las ventas a crédito necesitan un cliente y quedan como cuenta por cobrar. El inventario se descuenta solo si eliges un producto.</p>
+          <p>Ve al botón <strong>➕ (Registrar) → Registrar venta</strong>, elige un producto o escribe una descripción libre, indica cantidad y precio, y si fue de <strong>contado</strong> (efectivo, transferencia o tarjeta) o a <strong>crédito</strong>. Las ventas a crédito necesitan un cliente y quedan como cuenta por cobrar. El inventario se descuenta solo si eliges un producto.</p>
         </details>
         <details class="learn-item">
           <summary>🧾 Cuentas por cobrar y cierre de caja</summary>
@@ -386,15 +386,15 @@
         </details>
         <details class="learn-item">
           <summary>🧾 Registrar un gasto</summary>
-          <p>Ve a <strong>Registrar → Registrar gasto</strong>, elige una categoría y el valor. Se resta automáticamente de tus ganancias en Finanzas.</p>
+          <p>Ve al botón <strong>➕ (Registrar) → Registrar gasto</strong>, elige una categoría y el valor. Se resta automáticamente de tus ganancias en Finanzas.</p>
         </details>
         <details class="learn-item">
           <summary>📦 Controlar tu inventario</summary>
-          <p>En <strong>Mi negocio → Productos</strong> agrega cada producto con su cantidad y una cantidad mínima. La app te avisa en Inicio cuando un producto está por agotarse.</p>
+          <p>En <strong>Registro → Productos</strong> agrega cada producto con su cantidad y una cantidad mínima. La app te avisa en Inicio cuando un producto está por agotarse.</p>
         </details>
         <details class="learn-item">
           <summary>👥 Clientes y 🚚 proveedores</summary>
-          <p>En <strong>Mi negocio</strong> puedes crear, editar o eliminar tus clientes y proveedores cuando quieras, y llevar el saldo que te deben o les debes.</p>
+          <p>En <strong>Registro</strong> puedes crear, editar o eliminar tus clientes y proveedores cuando quieras, y llevar el saldo que te deben o les debes.</p>
         </details>
         <details class="learn-item">
           <summary>📊 Revisar tus finanzas y metas</summary>
@@ -458,8 +458,8 @@
 
     <nav class="bottom-nav">
       <button class="nav-btn active" data-view="inicio"><span>🏠</span>Inicio</button>
-      <button class="nav-btn" data-view="negocio"><span>💼</span>Mi negocio</button>
-      <button class="nav-btn nav-btn-center" data-view="registrar"><span>➕</span><span class="nav-label">Registrar</span></button>
+      <button class="nav-btn" data-view="negocio"><span>💼</span>Registro</button>
+      <button class="nav-btn nav-btn-center" data-view="registrar"><span>➕</span><span class="nav-label" id="nav-label-registrar">Registrar</span></button>
       <button class="nav-btn" data-view="finanzas"><span>📊</span>Finanzas</button>
       <button class="nav-btn" data-view="perfil"><span>👤</span>Perfil</button>
       <button class="nav-btn" data-view="aprenda"><span>🎓</span>Aprenda</button>
