@@ -820,6 +820,7 @@ function marcarCompraPagada(id){
   const compra = DB.compras.find(c=>c.id===id);
   if(!compra) return;
   compra.pagada = true;
+  compra.fechaPago = new Date().toISOString();
   const proveedor = DB.proveedores.find(p=>p.id===compra.proveedorId);
   registrarCambio('Compra', 'Pago', `Marcó como pagada la compra a "${proveedor?.nombre||''}" por ${money(compra.total)}`);
   saveDB();
@@ -855,6 +856,28 @@ document.getElementById('lista-por-pagar').addEventListener('click', (e)=>{
   const btn = e.target.closest('[data-accion="marcar-compra-pagada"]');
   if(btn) marcarCompraPagada(btn.dataset.id);
 });
+
+function renderPagosRealizados(){
+  const cont = document.getElementById('lista-pagos-realizados');
+  const pagadas = DB.compras
+    .filter(c=>c.tipoCompra==='credito' && c.pagada)
+    .sort((a,b)=> new Date(b.fechaPago||b.fecha) - new Date(a.fechaPago||a.fecha))
+    .slice(0,20);
+  if(pagadas.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no has pagado ninguna cuenta a crédito</div>';
+    return;
+  }
+  cont.innerHTML = pagadas.map(c=>{
+    const proveedor = DB.proveedores.find(pr=>pr.id===c.proveedorId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}</span>
+        <span class="li-sub">${c.fechaPago ? `Pagada el ${fmtDateTime(c.fechaPago)}` : `Comprada el ${fmtDate(c.fecha)}`}</span>
+      </div>
+      <span class="li-value">${money(c.total)}</span>
+    </div>`;
+  }).join('');
+}
 
 /* ================= CARTERA ================= */
 function renderCartera(){
@@ -893,7 +916,9 @@ function renderCartera(){
 
 function renderCuentas(){
   renderDeudores();
+  renderCobrosPagados();
   renderPorPagar();
+  renderPagosRealizados();
   renderCartera();
 }
 
@@ -1466,6 +1491,28 @@ function renderDeudores(){
     </div>`).join('');
 }
 
+function renderCobrosPagados(){
+  const cont = document.getElementById('lista-cobros-pagados');
+  const pagadas = DB.ventas
+    .filter(v=>v.tipoVenta==='credito' && v.pagada && !v.anulada)
+    .sort((a,b)=> new Date(b.fechaPago||b.fecha) - new Date(a.fechaPago||a.fecha))
+    .slice(0,20);
+  if(pagadas.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no has cobrado ninguna venta a crédito</div>';
+    return;
+  }
+  cont.innerHTML = pagadas.map(v=>{
+    const cliente = DB.clientes.find(c=>c.id===v.clienteId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(cliente ? (cliente.nombres||cliente.nombre) : '(sin nombre)')} · Factura No. ${v.numeroFactura}</span>
+        <span class="li-sub">${v.fechaPago ? `Cobrada el ${fmtDateTime(v.fechaPago)}` : `Vendida el ${fmtDate(v.fecha)}`}</span>
+      </div>
+      <span class="li-value">${money(v.total)}</span>
+    </div>`;
+  }).join('');
+}
+
 function verDeudaCliente(clienteId){
   const cliente = DB.clientes.find(c=>c.id===clienteId);
   if(!cliente) return;
@@ -1507,6 +1554,7 @@ function marcarVentaPagada(ventaId){
   const venta = DB.ventas.find(v=>v.id===ventaId);
   if(!venta) return;
   venta.pagada = true;
+  venta.fechaPago = new Date().toISOString();
   registrarCambio('Venta', 'Pago', `Marcó como pagada la factura de venta No. ${venta.numeroFactura}`);
   saveDB();
   renderAll();
