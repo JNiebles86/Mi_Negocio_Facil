@@ -214,6 +214,15 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .video-title{font-size:13px;font-weight:600;color:var(--azul);}
 .video-cta{font-size:11px;font-weight:700;color:var(--verde-oscuro);white-space:nowrap;}
 
+.search-input{width:100%;margin-bottom:12px;}
+
+/* Cierre de caja */
+.cierre-split{display:flex;gap:10px;}
+.cierre-col{flex:1;background:var(--gris-fondo);border-radius:12px;padding:14px;min-width:0;}
+.cierre-col h4{margin:0 0 8px;font-size:13px;}
+.cierre-col .cierre-total{font-size:19px;font-weight:800;margin-bottom:10px;word-break:break-word;}
+.cierre-line{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--gris-texto);margin-bottom:4px;}
+
 /* goals progress */
 .goal-item{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);}
 .goal-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:8px;}
@@ -281,6 +290,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   input,select,textarea{background:#0e1c2a;color:#eef2f5;border-color:#22394d;}
   .phone-prefix{background:#0e1c2a;color:#9fb0bd;border-color:#22394d;}
   .info-box{background:#0e2436;color:#9fc4e0;}
+  .cierre-col{background:#0e1c2a;}
   .finance-total{background:var(--azul);}
   p{color:#9fb0bd;}
 }

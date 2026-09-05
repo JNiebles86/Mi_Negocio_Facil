@@ -173,6 +173,7 @@ document.querySelectorAll('[data-open]').forEach(el=>{
     const tipo = el.dataset.open;
     if(tipo==='cliente') return abrirModalCliente(null);
     if(tipo==='proveedor') return abrirModalProveedor(null);
+    if(tipo==='producto') return abrirModalProducto();
     openModal(tipo);
   });
 });
@@ -195,6 +196,13 @@ document.getElementById('form-onboarding').addEventListener('submit', (e)=>{
 });
 
 /* ================= PRODUCTOS ================= */
+function abrirModalProducto(){
+  const selPr = document.getElementById('p-proveedor');
+  selPr.innerHTML = '<option value="">— Sin proveedor —</option>' +
+    DB.proveedores.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
+  openModal('producto');
+}
+
 document.getElementById('form-producto').addEventListener('submit', (e)=>{
   e.preventDefault();
   DB.productos.push({
@@ -203,7 +211,8 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
     cantidad: Number(document.getElementById('p-cantidad').value)||0,
     precioCompra: Number(document.getElementById('p-compra').value)||0,
     precioVenta: Number(document.getElementById('p-venta').value)||0,
-    cantidadMinima: Number(document.getElementById('p-minima').value)||0
+    cantidadMinima: Number(document.getElementById('p-minima').value)||0,
+    proveedorId: document.getElementById('p-proveedor').value || null
   });
   saveDB();
   e.target.reset();
@@ -228,10 +237,13 @@ document.getElementById('lista-productos').addEventListener('click', (e)=>{
 /* ================= CLIENTES ================= */
 function abrirModalCliente(cliente){
   document.getElementById('c-id').value = cliente?.id || '';
-  document.getElementById('c-nombre').value = cliente?.nombre || '';
-  document.getElementById('c-telefono').value = cliente?.telefono || '';
+  document.getElementById('c-nombres').value = cliente?.nombres || cliente?.nombre || '';
+  document.getElementById('c-tipo-id').value = cliente?.tipoIdentificacion || 'CC';
+  document.getElementById('c-numero-id').value = cliente?.numeroIdentificacion || '';
+  document.getElementById('c-direccion').value = cliente?.direccion || '';
+  document.getElementById('c-ciudad').value = cliente?.ciudad || '';
+  document.getElementById('c-celular').value = cliente?.celular || cliente?.telefono || '';
   document.getElementById('c-correo').value = cliente?.correo || '';
-  document.getElementById('c-saldo').value = cliente?.saldoPendiente || 0;
   document.getElementById('cliente-modal-titulo').textContent = cliente ? '👥 Editar cliente' : '👥 Registrar cliente';
   document.getElementById('cliente-submit-btn').textContent = cliente ? 'Guardar cambios' : 'Guardar cliente';
   openModal('cliente');
@@ -250,10 +262,13 @@ document.getElementById('form-cliente').addEventListener('submit', (e)=>{
   e.preventDefault();
   const id = document.getElementById('c-id').value;
   const datos = {
-    nombre: document.getElementById('c-nombre').value.trim(),
-    telefono: document.getElementById('c-telefono').value.trim(),
-    correo: document.getElementById('c-correo').value.trim(),
-    saldoPendiente: Number(document.getElementById('c-saldo').value)||0
+    nombres: document.getElementById('c-nombres').value.trim(),
+    tipoIdentificacion: document.getElementById('c-tipo-id').value,
+    numeroIdentificacion: document.getElementById('c-numero-id').value.trim(),
+    direccion: document.getElementById('c-direccion').value.trim(),
+    ciudad: document.getElementById('c-ciudad').value.trim(),
+    celular: document.getElementById('c-celular').value.trim(),
+    correo: document.getElementById('c-correo').value.trim()
   };
   if(id){
     const cliente = DB.clientes.find(c=>c.id===id);
@@ -276,14 +291,25 @@ document.getElementById('lista-clientes').addEventListener('click', (e)=>{
   if(btn.dataset.accion==='eliminar-cliente') eliminarCliente(id);
 });
 
+document.getElementById('buscar-cliente').addEventListener('input', renderClientes);
+
 /* ================= PROVEEDORES ================= */
+function actualizarLabelProveedor(){
+  const esJuridica = document.getElementById('pr-tipo-persona').value === 'juridica';
+  document.getElementById('pr-nombre-label').textContent = esJuridica ? 'Nombre de empresa' : 'Nombre y apellido';
+}
+document.getElementById('pr-tipo-persona').addEventListener('change', actualizarLabelProveedor);
+
 function abrirModalProveedor(proveedor){
   document.getElementById('pr-id').value = proveedor?.id || '';
+  document.getElementById('pr-tipo-persona').value = proveedor?.tipoPersona || 'natural';
+  document.getElementById('pr-numero-id').value = proveedor?.numeroIdentificacion || '';
   document.getElementById('pr-nombre').value = proveedor?.nombre || '';
-  document.getElementById('pr-provee').value = proveedor?.provee || '';
+  document.getElementById('pr-direccion').value = proveedor?.direccion || '';
+  document.getElementById('pr-ciudad').value = proveedor?.ciudad || '';
   document.getElementById('pr-telefono').value = proveedor?.telefono || '';
   document.getElementById('pr-correo').value = proveedor?.correo || '';
-  document.getElementById('pr-saldo').value = proveedor?.saldoPendiente || 0;
+  actualizarLabelProveedor();
   document.getElementById('proveedor-modal-titulo').textContent = proveedor ? '🚚 Editar proveedor' : '🚚 Registrar proveedor';
   document.getElementById('proveedor-submit-btn').textContent = proveedor ? 'Guardar cambios' : 'Guardar proveedor';
   openModal('proveedor');
@@ -302,11 +328,13 @@ document.getElementById('form-proveedor').addEventListener('submit', (e)=>{
   e.preventDefault();
   const id = document.getElementById('pr-id').value;
   const datos = {
+    tipoPersona: document.getElementById('pr-tipo-persona').value,
+    numeroIdentificacion: document.getElementById('pr-numero-id').value.trim(),
     nombre: document.getElementById('pr-nombre').value.trim(),
-    provee: document.getElementById('pr-provee').value.trim(),
+    direccion: document.getElementById('pr-direccion').value.trim(),
+    ciudad: document.getElementById('pr-ciudad').value.trim(),
     telefono: document.getElementById('pr-telefono').value.trim(),
-    correo: document.getElementById('pr-correo').value.trim(),
-    saldoPendiente: Number(document.getElementById('pr-saldo').value)||0
+    correo: document.getElementById('pr-correo').value.trim()
   };
   if(id){
     const proveedor = DB.proveedores.find(p=>p.id===id);
@@ -336,9 +364,11 @@ function prepararModalVenta(){
     DB.productos.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)} (disp: ${p.cantidad})</option>`).join('');
   const selC = document.getElementById('v-cliente');
   selC.innerHTML = '<option value="">— Sin cliente —</option>' +
-    DB.clientes.map(c=>`<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
+    DB.clientes.map(c=>`<option value="${c.id}">${escapeHtml(c.nombres||c.nombre||'')}</option>`).join('');
   document.getElementById('form-venta').reset();
   document.getElementById('v-cantidad').value = 1;
+  document.getElementById('v-tipo').value = 'contado';
+  actualizarTipoVenta();
   actualizarTotalVenta();
 }
 function actualizarTotalVenta(){
@@ -346,6 +376,12 @@ function actualizarTotalVenta(){
   const precio = Number(document.getElementById('v-precio').value)||0;
   document.getElementById('v-total').textContent = money(cant*precio);
 }
+function actualizarTipoVenta(){
+  const esCredito = document.getElementById('v-tipo').value === 'credito';
+  document.getElementById('v-pago-label').hidden = esCredito;
+  document.getElementById('v-credito-aviso').hidden = !esCredito;
+}
+document.getElementById('v-tipo').addEventListener('change', actualizarTipoVenta);
 document.getElementById('v-cantidad').addEventListener('input', actualizarTotalVenta);
 document.getElementById('v-precio').addEventListener('input', actualizarTotalVenta);
 document.getElementById('v-producto').addEventListener('change', (e)=>{
@@ -364,6 +400,13 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
   const cantidad = Number(document.getElementById('v-cantidad').value)||1;
   const precio = Number(document.getElementById('v-precio').value)||0;
   const descripcion = document.getElementById('v-descripcion').value.trim() || (producto?producto.nombre:'Venta');
+  const tipoVenta = document.getElementById('v-tipo').value;
+  const clienteId = document.getElementById('v-cliente').value || null;
+
+  if(tipoVenta==='credito' && !clienteId){
+    toast('Selecciona un cliente para registrar una venta a crédito ⚠️');
+    return;
+  }
 
   if(producto){
     if(producto.cantidad < cantidad){
@@ -380,8 +423,10 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
     precio,
     total: cantidad*precio,
     fecha: new Date().toISOString(),
-    clienteId: document.getElementById('v-cliente').value || null,
-    metodoPago: document.getElementById('v-pago').value
+    clienteId,
+    tipoVenta,
+    metodoPago: tipoVenta==='contado' ? document.getElementById('v-pago').value : null,
+    pagada: tipoVenta==='contado'
   });
   saveDB();
   closeModals();
@@ -601,6 +646,9 @@ document.getElementById('btn-cerrar-sesion').addEventListener('click', async ()=
 function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+function normalizarTexto(s){
+  return String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+}
 
 function ventasDelPeriodo(period){
   return DB.ventas.filter(v=>inPeriod(v.fecha, period));
@@ -637,10 +685,12 @@ function renderProductos(){
   }
   cont.innerHTML = DB.productos.map(p=>{
     const bajo = p.cantidad <= p.cantidadMinima;
+    const proveedor = DB.proveedores.find(pr=>pr.id===p.proveedorId);
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${escapeHtml(p.nombre)}</span>
         <span class="li-sub ${bajo?'stock-low':''}">Disponible: ${p.cantidad}${bajo?' ⚠️ ¡próximo a agotarse!':''}</span>
+        ${proveedor ? `<span class="li-sub">🚚 ${escapeHtml(proveedor.nombre)}</span>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value">${money(p.precioVenta)}</span>
@@ -650,20 +700,39 @@ function renderProductos(){
   }).join('');
 }
 
+function saldoClientePendiente(clienteId){
+  return DB.ventas
+    .filter(v=>v.clienteId===clienteId && v.tipoVenta==='credito' && !v.pagada)
+    .reduce((a,v)=>a+v.total,0);
+}
+
 function renderClientes(){
   const cont = document.getElementById('lista-clientes');
   if(DB.clientes.length===0){
     cont.innerHTML = '<div class="empty-state">Aún no tienes clientes registrados 👥</div>';
     return;
   }
-  cont.innerHTML = DB.clientes.map(c=>{
+  const filtro = normalizarTexto(document.getElementById('buscar-cliente').value.trim());
+  const lista = filtro
+    ? DB.clientes.filter(c=>
+        normalizarTexto(c.nombres||c.nombre||'').includes(filtro) ||
+        normalizarTexto(c.numeroIdentificacion||'').includes(filtro)
+      )
+    : DB.clientes;
+  if(lista.length===0){
+    cont.innerHTML = '<div class="empty-state">No se encontraron clientes con ese nombre 🔍</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(c=>{
+    const nombre = c.nombres || c.nombre || '(sin nombre)';
+    const saldo = saldoClientePendiente(c.id);
     return `<div class="list-item">
       <div class="li-main">
-        <span class="li-title">${escapeHtml(c.nombre)}</span>
-        <span class="li-sub">${escapeHtml(c.telefono||c.correo||'Sin datos de contacto')}</span>
+        <span class="li-title">${escapeHtml(nombre)}</span>
+        <span class="li-sub">${escapeHtml(c.celular||c.telefono||c.correo||'Sin datos de contacto')}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        ${c.saldoPendiente>0 ? `<span class="li-value neg">Debe ${money(c.saldoPendiente)}</span>` : `<span class="li-value">Al día</span>`}
+        ${saldo>0 ? `<span class="li-value neg">Debe ${money(saldo)}</span>` : `<span class="li-value">Al día</span>`}
         <div style="display:flex;gap:6px;">
           <button data-accion="editar-cliente" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
           <button data-accion="eliminar-cliente" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
@@ -680,17 +749,15 @@ function renderProveedores(){
     return;
   }
   cont.innerHTML = DB.proveedores.map(p=>{
+    const tipoTxt = p.tipoPersona==='juridica' ? 'Persona jurídica' : 'Persona natural';
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${escapeHtml(p.nombre)}</span>
-        <span class="li-sub">${escapeHtml(p.provee || p.telefono || p.correo || 'Sin datos')}</span>
+        <span class="li-sub">${tipoTxt} · ${escapeHtml(p.telefono||p.correo||'Sin datos')}</span>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        ${p.saldoPendiente>0 ? `<span class="li-value neg">Le debes ${money(p.saldoPendiente)}</span>` : `<span class="li-value">Al día</span>`}
-        <div style="display:flex;gap:6px;">
-          <button data-accion="editar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
-          <button data-accion="eliminar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
-        </div>
+      <div style="display:flex;gap:6px;">
+        <button data-accion="editar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
+        <button data-accion="eliminar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
       </div>
     </div>`;
   }).join('');
@@ -740,6 +807,7 @@ function renderFinanzas(){
     </div>`).join('') : '<div class="empty-state">Todavía no hay ventas este mes</div>';
 
   renderMetas();
+  renderDeudores();
 }
 
 function renderMetas(){
@@ -769,6 +837,100 @@ function renderMetas(){
     </div>`;
   }).join('');
 }
+
+/* ================= CUENTAS POR COBRAR ================= */
+function renderDeudores(){
+  const cont = document.getElementById('lista-deudores');
+  const deudores = DB.clientes
+    .map(c=>({ cliente:c, saldo: saldoClientePendiente(c.id) }))
+    .filter(d=>d.saldo>0);
+  if(deudores.length===0){
+    cont.innerHTML = '<div class="empty-state">No tienes clientes con deudas pendientes 🎉</div>';
+    return;
+  }
+  cont.innerHTML = deudores.map(d=>`
+    <div class="list-item" data-accion="ver-deuda" data-id="${d.cliente.id}" style="cursor:pointer;">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(d.cliente.nombres||d.cliente.nombre||'(sin nombre)')}</span>
+        <span class="li-sub">${escapeHtml(d.cliente.celular||d.cliente.telefono||'')}</span>
+      </div>
+      <span class="li-value neg">${money(d.saldo)}</span>
+    </div>`).join('');
+}
+
+function verDeudaCliente(clienteId){
+  const cliente = DB.clientes.find(c=>c.id===clienteId);
+  if(!cliente) return;
+  const ventasCredito = DB.ventas.filter(v=>v.clienteId===clienteId && v.tipoVenta==='credito' && !v.pagada);
+  document.getElementById('detalle-titulo').textContent = `Deuda de ${cliente.nombres||cliente.nombre||''}`;
+  document.getElementById('detalle-body').innerHTML = ventasCredito.length ? ventasCredito.map(v=>`
+    <div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(v.descripcion)}</span>
+        <span class="li-sub">${fmtDate(v.fecha)}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="li-value">${money(v.total)}</span>
+        <button data-accion="marcar-pagada" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+      </div>
+    </div>`).join('') : '<div class="empty-state">Sin deudas pendientes</div>';
+  openModal('detalle');
+}
+
+function marcarVentaPagada(ventaId){
+  const venta = DB.ventas.find(v=>v.id===ventaId);
+  if(!venta) return;
+  venta.pagada = true;
+  saveDB();
+  renderAll();
+  closeModals();
+  toast('Cuenta marcada como pagada ✅');
+}
+
+document.getElementById('lista-deudores').addEventListener('click', (e)=>{
+  const el = e.target.closest('[data-accion="ver-deuda"]');
+  if(el) verDeudaCliente(el.dataset.id);
+});
+
+document.getElementById('detalle-body').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion="marcar-pagada"]');
+  if(btn) marcarVentaPagada(btn.dataset.id);
+});
+
+/* ================= CIERRE DE CAJA ================= */
+function abrirCierreCaja(){
+  const ventasHoy = ventasDelPeriodo('dia');
+  const contado = ventasHoy.filter(v=>v.tipoVenta!=='credito');
+  const credito = ventasHoy.filter(v=>v.tipoVenta==='credito');
+  const totalContado = contado.reduce((a,v)=>a+v.total,0);
+  const totalCredito = credito.reduce((a,v)=>a+v.total,0);
+
+  const porMetodo = {};
+  contado.forEach(v=>{
+    const m = v.metodoPago || 'Otro';
+    porMetodo[m] = (porMetodo[m]||0) + v.total;
+  });
+  const lineasMetodo = Object.entries(porMetodo).map(([m,val])=>
+    `<div class="cierre-line"><span>${escapeHtml(m)}</span><span>${money(val)}</span></div>`
+  ).join('') || '<div class="cierre-line"><span>Sin ventas</span></div>';
+
+  document.getElementById('detalle-titulo').textContent = '📋 Cierre de caja de hoy';
+  document.getElementById('detalle-body').innerHTML = `
+    <div class="cierre-split">
+      <div class="cierre-col">
+        <h4>💵 Contado</h4>
+        <div class="cierre-total">${money(totalContado)}</div>
+        ${lineasMetodo}
+      </div>
+      <div class="cierre-col">
+        <h4>🧾 Crédito</h4>
+        <div class="cierre-total">${money(totalCredito)}</div>
+        <div class="cierre-line"><span>${credito.length} venta(s)</span></div>
+      </div>
+    </div>`;
+  openModal('detalle');
+}
+document.getElementById('btn-cierre-caja').addEventListener('click', abrirCierreCaja);
 
 function renderPerfil(){
   if(!DB.negocio) return;
