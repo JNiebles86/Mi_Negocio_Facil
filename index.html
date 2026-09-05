@@ -272,6 +272,12 @@
 
         <h3 class="section-title">🧾 Facturas recientes</h3>
         <div id="lista-facturas" class="list"></div>
+
+        <h3 class="section-title">🧾 Gastos recientes</h3>
+        <div id="lista-gastos" class="list"></div>
+
+        <h3 class="section-title">🧾 Compras recientes</h3>
+        <div id="lista-compras" class="list"></div>
       </section>
 
       <!-- PERFIL -->
@@ -527,7 +533,7 @@
     </div>
 
     <div class="modal" id="modal-compra" hidden>
-      <div class="modal-header"><h3>🧾 Registrar compra</h3><button class="modal-close">✕</button></div>
+      <div class="modal-header"><h3 id="compra-modal-titulo">🧾 Registrar compra</h3><button class="modal-close">✕</button></div>
 
       <div class="item-form">
         <label>Producto
@@ -547,6 +553,7 @@
       <div id="co-carrito-lista" class="list" style="margin:14px 0;"></div>
 
       <form id="form-compra">
+        <input type="hidden" id="co-id">
         <label>Proveedor
           <select id="co-proveedor" required><option value="">— Elige un proveedor —</option></select>
         </label>
@@ -554,7 +561,7 @@
           <input type="text" id="co-numero-factura" placeholder="Ej: FV-00123">
         </label>
         <div class="modal-total">Total: <strong id="co-total">$0</strong></div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar compra</button>
+        <button type="submit" id="compra-submit-btn" class="btn btn-primary btn-block btn-lg">Guardar compra</button>
       </form>
     </div>
 
@@ -581,8 +588,9 @@
     </div>
 
     <div class="modal" id="modal-gasto" hidden>
-      <div class="modal-header"><h3>🧾 Registrar gasto</h3><button class="modal-close">✕</button></div>
+      <div class="modal-header"><h3 id="gasto-modal-titulo">🧾 Registrar gasto</h3><button class="modal-close">✕</button></div>
       <form id="form-gasto">
+        <input type="hidden" id="g-id">
         <label>Nombre del gasto
           <input type="text" id="g-nombre" placeholder="Ej: Compra de mercancía" required>
         </label>
@@ -603,7 +611,7 @@
         <label>Descripción (opcional)
           <input type="text" id="g-descripcion">
         </label>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar gasto</button>
+        <button type="submit" id="gasto-submit-btn" class="btn btn-primary btn-block btn-lg">Guardar gasto</button>
       </form>
     </div>
 
