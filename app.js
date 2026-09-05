@@ -36,7 +36,7 @@ let currentUser = null;
 
 /* ---------- Persistencia (Firestore, por usuario) ---------- */
 function emptyDB(){
-  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [] };
+  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [], cambios: [] };
 }
 
 async function loadUserDB(uidUsuario){
@@ -79,6 +79,16 @@ function money(n){
 }
 function fmtDate(d){
   return new Date(d).toLocaleDateString('es-CO', {day:'2-digit', month:'short'});
+}
+function fmtDateTime(d){
+  const fecha = new Date(d);
+  const hora = fecha.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
+  return `${fmtDate(fecha)}, ${hora}`;
+}
+function registrarCambio(modulo, accion, descripcion){
+  DB.cambios = DB.cambios || [];
+  DB.cambios.unshift({ id: uid(), fecha: new Date().toISOString(), modulo, accion, descripcion });
+  if(DB.cambios.length > 300) DB.cambios.length = 300;
 }
 
 /* ---------- Fechas / periodos ---------- */
@@ -244,8 +254,10 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
   if(id){
     const producto = DB.productos.find(p=>p.id===id);
     if(producto) Object.assign(producto, datos);
+    registrarCambio('Producto', 'Editar', `Editó el producto "${datos.nombre}"`);
   } else {
     DB.productos.push({ id: uid(), ...datos });
+    registrarCambio('Producto', 'Crear', `Registró el producto "${datos.nombre}"`);
   }
   saveDB();
   e.target.reset();
@@ -262,7 +274,9 @@ function editarProducto(id){
 }
 function eliminarProducto(id){
   if(!confirm('¿Eliminar este producto?')) return;
+  const producto = DB.productos.find(p=>p.id===id);
   DB.productos = DB.productos.filter(p=>p.id!==id);
+  registrarCambio('Producto', 'Eliminar', `Eliminó el producto "${producto?.nombre||''}"`);
   saveDB(); renderAll();
 }
 
@@ -307,7 +321,9 @@ function editarCliente(id){
 }
 function eliminarCliente(id){
   if(!confirm('¿Eliminar este cliente?')) return;
+  const cliente = DB.clientes.find(c=>c.id===id);
   DB.clientes = DB.clientes.filter(c=>c.id!==id);
+  registrarCambio('Cliente', 'Eliminar', `Eliminó el cliente "${cliente?.nombres||cliente?.nombre||''}"`);
   saveDB(); renderAll();
 }
 
@@ -329,8 +345,10 @@ document.getElementById('form-cliente').addEventListener('submit', (e)=>{
   if(id){
     const cliente = DB.clientes.find(c=>c.id===id);
     if(cliente) Object.assign(cliente, datos);
+    registrarCambio('Cliente', 'Editar', `Editó el cliente "${datos.nombres}"`);
   } else {
     DB.clientes.push({ id: uid(), ...datos });
+    registrarCambio('Cliente', 'Crear', `Registró el cliente "${datos.nombres}"`);
   }
   saveDB();
   e.target.reset();
@@ -380,7 +398,9 @@ function editarProveedor(id){
 }
 function eliminarProveedor(id){
   if(!confirm('¿Eliminar este proveedor?')) return;
+  const proveedor = DB.proveedores.find(p=>p.id===id);
   DB.proveedores = DB.proveedores.filter(p=>p.id!==id);
+  registrarCambio('Proveedor', 'Eliminar', `Eliminó el proveedor "${proveedor?.nombre||''}"`);
   saveDB(); renderAll();
 }
 
@@ -402,8 +422,10 @@ document.getElementById('form-proveedor').addEventListener('submit', (e)=>{
   if(id){
     const proveedor = DB.proveedores.find(p=>p.id===id);
     if(proveedor) Object.assign(proveedor, datos);
+    registrarCambio('Proveedor', 'Editar', `Editó el proveedor "${datos.nombre}"`);
   } else {
     DB.proveedores.push({ id: uid(), ...datos });
+    registrarCambio('Proveedor', 'Crear', `Registró el proveedor "${datos.nombre}"`);
   }
   saveDB();
   e.target.reset();
@@ -571,6 +593,7 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
     total: t.total
   };
   DB.ventas.push(venta);
+  registrarCambio('Venta', 'Crear', `Registró la factura de venta No. ${venta.numeroFactura} por ${money(venta.total)}`);
   saveDB();
   closeModals();
   toast('Factura registrada 💰');
@@ -595,6 +618,7 @@ function abrirModalCompra(compra){
   document.getElementById('co-proveedor').value = compra?.proveedorId || '';
   document.getElementById('co-numero-factura').value = compra?.numeroFacturaProveedor || '';
   document.getElementById('co-tipo').value = compra?.tipoCompra || 'contado';
+  document.getElementById('co-vencimiento').value = compra?.fechaVencimiento ? compra.fechaVencimiento.slice(0,10) : '';
   actualizarTipoCompra();
   document.getElementById('compra-modal-titulo').textContent = compra ? '🧾 Editar compra' : '🧾 Registrar compra';
   document.getElementById('compra-submit-btn').textContent = compra ? 'Guardar cambios' : 'Guardar compra';
@@ -602,7 +626,9 @@ function abrirModalCompra(compra){
   openModal('compra');
 }
 function actualizarTipoCompra(){
-  document.getElementById('co-credito-aviso').hidden = document.getElementById('co-tipo').value !== 'credito';
+  const esCredito = document.getElementById('co-tipo').value === 'credito';
+  document.getElementById('co-credito-aviso').hidden = !esCredito;
+  document.getElementById('co-vencimiento-label').hidden = !esCredito;
 }
 document.getElementById('co-tipo').addEventListener('change', actualizarTipoCompra);
 
@@ -655,6 +681,9 @@ document.getElementById('form-compra').addEventListener('submit', (e)=>{
   if(!proveedorId){ toast('Elige un proveedor ⚠️'); return; }
 
   const id = document.getElementById('co-id').value;
+  const tipoCompraForm = document.getElementById('co-tipo').value;
+  const vencimientoInput = document.getElementById('co-vencimiento').value;
+  const fechaVencimiento = (tipoCompraForm==='credito' && vencimientoInput) ? new Date(vencimientoInput+'T00:00:00').toISOString() : null;
   if(id){
     const compra = DB.compras.find(c=>c.id===id);
     if(!compra) return;
@@ -670,26 +699,30 @@ document.getElementById('form-compra').addEventListener('submit', (e)=>{
     });
     compra.proveedorId = proveedorId;
     compra.numeroFacturaProveedor = document.getElementById('co-numero-factura').value.trim();
-    compra.tipoCompra = document.getElementById('co-tipo').value;
+    compra.tipoCompra = tipoCompraForm;
     if(compra.tipoCompra==='contado') compra.pagada = true;
+    compra.fechaVencimiento = fechaVencimiento;
     compra.items = carritoCompra.slice();
     compra.total = carritoCompra.reduce((a,it)=>a+it.total,0);
+    registrarCambio('Compra', 'Editar', `Editó la compra a "${DB.proveedores.find(p=>p.id===proveedorId)?.nombre||''}" por ${money(compra.total)}`);
   } else {
     carritoCompra.forEach(it=>{
       const producto = DB.productos.find(p=>p.id===it.productoId);
       if(producto) producto.cantidad = producto.cantidad + it.cantidad;
     });
-    const tipoCompra = document.getElementById('co-tipo').value;
-    DB.compras.push({
+    const compra = {
       id: uid(),
       fecha: new Date().toISOString(),
       proveedorId,
       numeroFacturaProveedor: document.getElementById('co-numero-factura').value.trim(),
-      tipoCompra,
-      pagada: tipoCompra==='contado',
+      tipoCompra: tipoCompraForm,
+      pagada: tipoCompraForm==='contado',
+      fechaVencimiento,
       items: carritoCompra.slice(),
       total: carritoCompra.reduce((a,it)=>a+it.total,0)
-    });
+    };
+    DB.compras.push(compra);
+    registrarCambio('Compra', 'Crear', `Registró una compra a "${DB.proveedores.find(p=>p.id===proveedorId)?.nombre||''}" por ${money(compra.total)}`);
   }
   saveDB();
   closeModals();
@@ -710,7 +743,41 @@ function eliminarCompra(id){
     if(producto) producto.cantidad = Math.max(0, producto.cantidad - it.cantidad);
   });
   DB.compras = DB.compras.filter(c=>c.id!==id);
+  const proveedor = DB.proveedores.find(p=>p.id===compra.proveedorId);
+  registrarCambio('Compra', 'Eliminar', `Eliminó la compra a "${proveedor?.nombre||''}" por ${money(compra.total)}`);
   saveDB(); renderAll();
+}
+
+function mostrarCompra(id){
+  const compra = DB.compras.find(c=>c.id===id);
+  if(!compra) return;
+  const proveedor = DB.proveedores.find(p=>p.id===compra.proveedorId);
+  const filas = (compra.items||[]).map(it=>`
+    <tr>
+      <td>${escapeHtml(it.descripcion)}</td>
+      <td>${it.cantidad}</td>
+      <td>${money(it.costoUnitario)}</td>
+      <td>${money(it.total)}</td>
+    </tr>`).join('');
+  document.getElementById('detalle-titulo').textContent = 'Detalle de compra';
+  document.getElementById('detalle-body').innerHTML = `
+    <div class="factura-doc">
+      <div style="font-size:13px;margin-bottom:10px;">
+        <strong>Proveedor:</strong> ${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}<br>
+        ${compra.numeroFacturaProveedor ? `<strong>N.° de factura:</strong> ${escapeHtml(compra.numeroFacturaProveedor)}<br>` : ''}
+        <strong>Fecha:</strong> ${fmtDateTime(compra.fecha)}<br>
+        <strong>Tipo:</strong> ${compra.tipoCompra==='credito' ? 'Crédito' : 'Contado'}
+        ${compra.tipoCompra==='credito' ? ` — ${compra.pagada ? 'Pagada' : 'Pendiente de pago'}` : ''}
+        ${compra.fechaVencimiento ? `<br><strong>Vence:</strong> ${fmtDate(compra.fechaVencimiento)}` : ''}
+      </div>
+      <table>
+        <thead><tr><th>Producto</th><th>Cant.</th><th>Vr. unitario</th><th>Vr. total</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+      <div class="modal-total" style="margin-top:10px;">Total: <strong>${money(compra.total)}</strong></div>
+    </div>
+  `;
+  openModal('detalle');
 }
 
 function renderCompras(){
@@ -726,11 +793,12 @@ function renderCompras(){
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}${c.numeroFacturaProveedor ? ` <span class="li-sub">(${escapeHtml(c.numeroFacturaProveedor)})</span>` : ''}${esCreditoPendiente ? '<span class="badge-estado">Por pagar</span>' : ''}</span>
-        <span class="li-sub">${fmtDate(c.fecha)} · ${(c.items||[]).length} producto(s)</span>
+        <span class="li-sub">${fmtDateTime(c.fecha)} · ${(c.items||[]).length} producto(s)</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value">${money(c.total)}</span>
         <div style="display:flex;gap:6px;">
+          <button data-accion="ver-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Ver</button>
           <button data-accion="editar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
           <button data-accion="eliminar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
         </div>
@@ -742,6 +810,7 @@ document.getElementById('lista-compras').addEventListener('click', (e)=>{
   const btn = e.target.closest('[data-accion]');
   if(!btn) return;
   const id = btn.dataset.id;
+  if(btn.dataset.accion==='ver-compra') mostrarCompra(id);
   if(btn.dataset.accion==='editar-compra') editarCompra(id);
   if(btn.dataset.accion==='eliminar-compra') eliminarCompra(id);
 });
@@ -751,6 +820,8 @@ function marcarCompraPagada(id){
   const compra = DB.compras.find(c=>c.id===id);
   if(!compra) return;
   compra.pagada = true;
+  const proveedor = DB.proveedores.find(p=>p.id===compra.proveedorId);
+  registrarCambio('Compra', 'Pago', `Marcó como pagada la compra a "${proveedor?.nombre||''}" por ${money(compra.total)}`);
   saveDB();
   renderAll();
   toast('Cuenta marcada como pagada ✅');
@@ -767,10 +838,11 @@ function renderPorPagar(){
   }
   cont.innerHTML = pendientes.map(c=>{
     const proveedor = DB.proveedores.find(pr=>pr.id===c.proveedorId);
+    const vencida = c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date();
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}</span>
-        <span class="li-sub">${fmtDate(c.fecha)}${c.numeroFacturaProveedor ? ` · ${escapeHtml(c.numeroFacturaProveedor)}` : ''}</span>
+        <span class="li-sub">${fmtDate(c.fecha)}${c.numeroFacturaProveedor ? ` · ${escapeHtml(c.numeroFacturaProveedor)}` : ''}${c.fechaVencimiento ? ` · Vence: ${fmtDate(c.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value neg">${money(c.total)}</span>
@@ -855,6 +927,7 @@ document.getElementById('form-ajuste').addEventListener('submit', (e)=>{
     motivo,
     fecha: new Date().toISOString()
   });
+  registrarCambio('Inventario', 'Ajuste', `Registró un ajuste de ${tipo} de ${cantidad} unidad(es) de "${producto.nombre}" (${motivo})`);
   saveDB();
   closeModals();
   toast('Ajuste registrado ⚖️');
@@ -885,8 +958,10 @@ document.getElementById('form-gasto').addEventListener('submit', (e)=>{
   if(id){
     const gasto = DB.gastos.find(g=>g.id===id);
     if(gasto) Object.assign(gasto, datos);
+    registrarCambio('Gasto', 'Editar', `Editó el gasto "${datos.nombre}" por ${money(datos.valor)}`);
   } else {
     DB.gastos.push({ id: uid(), fecha: new Date().toISOString(), ...datos });
+    registrarCambio('Gasto', 'Crear', `Registró el gasto "${datos.nombre}" por ${money(datos.valor)}`);
   }
   saveDB();
   e.target.reset();
@@ -901,7 +976,9 @@ function editarGasto(id){
 }
 function eliminarGasto(id){
   if(!confirm('¿Eliminar este gasto?')) return;
+  const gasto = DB.gastos.find(g=>g.id===id);
   DB.gastos = DB.gastos.filter(g=>g.id!==id);
+  registrarCambio('Gasto', 'Eliminar', `Eliminó el gasto "${gasto?.nombre||''}"`);
   saveDB(); renderAll();
 }
 
@@ -915,7 +992,7 @@ function renderGastos(){
   cont.innerHTML = gastosOrdenados.map(g=>`<div class="list-item">
       <div class="li-main">
         <span class="li-title">${escapeHtml(g.nombre)}</span>
-        <span class="li-sub">${fmtDate(g.fecha)} · ${escapeHtml(g.categoria||'')}</span>
+        <span class="li-sub">${fmtDateTime(g.fecha)} · ${escapeHtml(g.categoria||'')}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value neg">${money(g.valor)}</span>
@@ -1399,7 +1476,7 @@ function verDeudaCliente(clienteId){
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">Factura No. ${v.numeroFactura}</span>
-        <span class="li-sub">${fmtDate(v.fecha)}${v.fechaVencimiento ? ` · Vence: ${fmtDate(v.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
+        <span class="li-sub">${fmtDateTime(v.fecha)}${v.fechaVencimiento ? ` · Vence: ${fmtDate(v.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value ${vencida?'neg':''}">${money(v.total)}</span>
@@ -1420,6 +1497,7 @@ function anularVenta(ventaId){
     if(producto) producto.cantidad = producto.cantidad + it.cantidad;
   });
   venta.anulada = true;
+  registrarCambio('Venta', 'Anular', `Anuló la factura de venta No. ${venta.numeroFactura}`);
   saveDB();
   renderAll();
   toast('Factura anulada 🚫');
@@ -1429,6 +1507,7 @@ function marcarVentaPagada(ventaId){
   const venta = DB.ventas.find(v=>v.id===ventaId);
   if(!venta) return;
   venta.pagada = true;
+  registrarCambio('Venta', 'Pago', `Marcó como pagada la factura de venta No. ${venta.numeroFactura}`);
   saveDB();
   renderAll();
   closeModals();
@@ -1564,7 +1643,7 @@ function renderFacturas(){
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">Factura No. ${v.numeroFactura}${v.anulada ? '<span class="badge-estado">Anulada</span>' : ''}</span>
-        <span class="li-sub">${fmtDate(v.fecha)} · ${escapeHtml(cliente ? (cliente.nombres||cliente.nombre) : 'Consumidor final')}</span>
+        <span class="li-sub">${fmtDateTime(v.fecha)} · ${escapeHtml(cliente ? (cliente.nombres||cliente.nombre) : 'Consumidor final')}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value">${money(v.total)}</span>
@@ -1633,7 +1712,7 @@ function renderKardex(){
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${m.tipo} — ${escapeHtml(m.documento)}</span>
-        <span class="li-sub">${fmtDate(m.fecha)}</span>
+        <span class="li-sub">${fmtDateTime(m.fecha)}</span>
       </div>
       <span class="li-value ${m.cantidad<0?'neg':''}">${signo}${m.cantidad} · Saldo: ${saldo}</span>
     </div>`;
@@ -1659,6 +1738,24 @@ function renderPerfil(){
   document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada con el celular ${emailToTelefono(currentUser.email)}` : '';
 }
 
+/* ================= CAMBIOS EN EL SISTEMA ================= */
+function renderCambios(){
+  const cont = document.getElementById('lista-cambios');
+  if(!DB.cambios || DB.cambios.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no hay cambios registrados</div>';
+    return;
+  }
+  cont.innerHTML = DB.cambios.map(c=>`<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(c.modulo)} · ${escapeHtml(c.accion)}</span>
+        <span class="li-sub">${escapeHtml(c.descripcion)}</span>
+      </div>
+      <span class="li-sub">${fmtDateTime(c.fecha)}</span>
+    </div>`).join('');
+}
+document.getElementById('btn-ver-cambios').addEventListener('click', ()=> switchView('cambios'));
+document.getElementById('btn-volver-perfil').addEventListener('click', ()=> switchView('perfil'));
+
 function renderTopbar(){
   const nombreNegocio = DB.negocio?.nombre || 'Mi negocio';
   document.getElementById('tb-negocio').textContent = nombreNegocio;
@@ -1679,6 +1776,7 @@ function renderAll(){
   renderFacturas();
   renderCuentas();
   renderPerfil();
+  renderCambios();
 }
 
 /* ================= INSTALAR APP (PWA) ================= */

@@ -386,6 +386,12 @@
         </div>
 
         <div class="profile-card">
+          <h3>🕒 Cambios en el sistema</h3>
+          <p>Consulta el historial de acciones registradas en tu negocio: qué se creó, editó, eliminó o pagó, y cuándo.</p>
+          <button class="btn btn-secondary btn-block" id="btn-ver-cambios">Ver historial de cambios</button>
+        </div>
+
+        <div class="profile-card">
           <h3>🛟 Respaldo de tu información</h3>
           <p>Guarda una copia de tus datos o recupérala en otro celular.</p>
           <button class="btn btn-secondary btn-block" id="btn-exportar">⬇️ Descargar respaldo</button>
@@ -403,6 +409,14 @@
           <p id="pf-correo-actual" style="color:var(--gris-texto);font-size:13px;"></p>
           <button class="btn btn-secondary btn-block" id="btn-cerrar-sesion">Cerrar sesión</button>
         </div>
+      </section>
+
+      <!-- CAMBIOS EN EL SISTEMA -->
+      <section id="view-cambios" class="view" hidden>
+        <button class="btn btn-secondary" id="btn-volver-perfil" style="align-self:flex-start;padding:6px 14px;font-size:12px;">← Volver a Perfil</button>
+        <h2>Cambios en el Sistema</h2>
+        <p class="subtitle">Historial de acciones registradas en tu negocio</p>
+        <div id="lista-cambios" class="list"></div>
       </section>
 
       <!-- APRENDA -->
@@ -601,6 +615,9 @@
           </select>
         </label>
         <p class="info-box" id="co-credito-aviso" hidden>Esta compra quedará registrada como cuenta por pagar al proveedor elegido.</p>
+        <label id="co-vencimiento-label" hidden>Fecha de vencimiento de la factura
+          <input type="date" id="co-vencimiento">
+        </label>
         <div class="modal-total">Total: <strong id="co-total">$0</strong></div>
         <button type="submit" id="compra-submit-btn" class="btn btn-primary btn-block btn-lg">Guardar compra</button>
       </form>
