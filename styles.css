@@ -172,6 +172,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .register-dark{background:var(--azul);}
 .register-blue{background:var(--azul-claro);}
 .register-purple{background:#6b4fa0;}
+.register-teal{background:#0e7c86;}
 
 /* finanzas */
 .finance-rows{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
@@ -224,6 +225,32 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .cierre-line{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--gris-texto);margin-bottom:4px;}
 
 .badge-estado{display:inline-block;background:#fdecea;color:#c0392b;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle;}
+
+/* Carrito de factura (ventas/compras) */
+.item-form{display:flex;flex-direction:column;gap:12px;padding-bottom:14px;border-bottom:1px dashed var(--borde);margin-bottom:4px;}
+.item-form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.item-form label,.item-form-row label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--azul);}
+.carrito-item{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.carrito-item .li-quitar{background:none;border:none;color:#d9534f;font-weight:700;cursor:pointer;font-size:16px;padding:0 4px;}
+
+/* Factura imprimible */
+.factura-doc{font-family:Arial, Helvetica, sans-serif; color:#111; font-size:12px; text-align:left;}
+.factura-doc table{width:100%;border-collapse:collapse;margin:10px 0;}
+.factura-doc th,.factura-doc td{border:1px solid #333;padding:4px 6px;font-size:10px;text-align:left;}
+.factura-doc th{background:#dbe7f0;}
+.factura-header{display:flex;justify-content:space-between;gap:10px;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:8px;}
+.factura-header .num-box{background:var(--azul);color:#fff;padding:8px 14px;border-radius:4px;text-align:center;font-weight:800;white-space:nowrap;}
+.factura-totales{margin-top:10px;}
+.factura-firmas{display:flex;justify-content:space-between;gap:20px;margin-top:30px;font-size:10px;}
+.factura-firmas div{flex:1;border-top:1px solid #333;padding-top:4px;text-align:center;}
+
+@media print{
+  body > *:not(#modal-backdrop){display:none !important;}
+  #modal-backdrop{position:static !important;background:#fff !important;display:block !important;}
+  #modal-backdrop > .modal:not(#modal-detalle){display:none !important;}
+  #modal-detalle{box-shadow:none !important;max-width:100% !important;width:100% !important;border-radius:0 !important;max-height:none !important;}
+  .modal-close,.no-print{display:none !important;}
+}
 
 /* goals progress */
 .goal-item{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);}

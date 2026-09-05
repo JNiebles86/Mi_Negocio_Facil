@@ -36,7 +36,7 @@ let currentUser = null;
 
 /* ---------- Persistencia (Firestore, por usuario) ---------- */
 function emptyDB(){
-  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], gastos: [], metas: [] };
+  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [] };
 }
 
 async function loadUserDB(uidUsuario){
@@ -174,6 +174,8 @@ document.querySelectorAll('[data-open]').forEach(el=>{
     if(tipo==='cliente') return abrirModalCliente(null);
     if(tipo==='proveedor') return abrirModalProveedor(null);
     if(tipo==='producto') return abrirModalProducto();
+    if(tipo==='compra') return abrirModalCompra();
+    if(tipo==='ajuste') return abrirModalAjuste();
     openModal(tipo);
   });
 });
@@ -386,24 +388,26 @@ document.getElementById('lista-proveedores').addEventListener('click', (e)=>{
   if(btn.dataset.accion==='eliminar-proveedor') eliminarProveedor(id);
 });
 
-/* ================= VENTAS ================= */
+/* ================= VENTAS (factura con carrito multi-producto) ================= */
+let carritoVenta = [];
+
 function prepararModalVenta(){
+  carritoVenta = [];
   const selP = document.getElementById('v-producto');
   selP.innerHTML = '<option value="">— Sin producto (servicio libre) —</option>' +
     DB.productos.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)} (disp: ${p.cantidad})</option>`).join('');
   const selC = document.getElementById('v-cliente');
   selC.innerHTML = '<option value="">— Sin cliente —</option>' +
     DB.clientes.map(c=>`<option value="${c.id}">${escapeHtml(c.nombres||c.nombre||'')}</option>`).join('');
-  document.getElementById('form-venta').reset();
+  document.getElementById('v-descripcion').value = '';
   document.getElementById('v-cantidad').value = 1;
+  document.getElementById('v-precio').value = '';
+  document.getElementById('v-cliente').value = '';
   document.getElementById('v-tipo').value = 'contado';
+  document.getElementById('v-descuento').value = 0;
+  document.getElementById('v-iva').value = 0;
   actualizarTipoVenta();
-  actualizarTotalVenta();
-}
-function actualizarTotalVenta(){
-  const cant = Number(document.getElementById('v-cantidad').value)||0;
-  const precio = Number(document.getElementById('v-precio').value)||0;
-  document.getElementById('v-total').textContent = money(cant*precio);
+  renderCarritoVenta();
 }
 function actualizarTipoVenta(){
   const esCredito = document.getElementById('v-tipo').value === 'credito';
@@ -411,24 +415,79 @@ function actualizarTipoVenta(){
   document.getElementById('v-credito-aviso').hidden = !esCredito;
 }
 document.getElementById('v-tipo').addEventListener('change', actualizarTipoVenta);
-document.getElementById('v-cantidad').addEventListener('input', actualizarTotalVenta);
-document.getElementById('v-precio').addEventListener('input', actualizarTotalVenta);
 document.getElementById('v-producto').addEventListener('change', (e)=>{
   const prod = DB.productos.find(p=>p.id===e.target.value);
   if(prod){
     document.getElementById('v-precio').value = prod.precioVenta;
     document.getElementById('v-descripcion').value = prod.nombre;
-    actualizarTotalVenta();
   }
+});
+
+function totalesCarritoVenta(){
+  const subtotal = carritoVenta.reduce((a,it)=>a+it.total,0);
+  const descPct = Number(document.getElementById('v-descuento').value)||0;
+  const ivaPct = Number(document.getElementById('v-iva').value)||0;
+  const descuentoTotal = subtotal * descPct/100;
+  const base = subtotal - descuentoTotal;
+  const ivaTotal = base * ivaPct/100;
+  const total = base + ivaTotal;
+  return { subtotal, descPct, ivaPct, descuentoTotal, ivaTotal, total };
+}
+
+function renderCarritoVenta(){
+  const cont = document.getElementById('v-carrito-lista');
+  cont.innerHTML = carritoVenta.length===0
+    ? '<div class="empty-state">Aún no has agregado productos a la factura</div>'
+    : carritoVenta.map((it,idx)=>`
+      <div class="list-item carrito-item">
+        <div class="li-main">
+          <span class="li-title">${escapeHtml(it.descripcion)}</span>
+          <span class="li-sub">${it.cantidad} x ${money(it.precioUnitario)}</span>
+        </div>
+        <span class="li-value">${money(it.total)}</span>
+        <button type="button" class="li-quitar" data-idx="${idx}">✕</button>
+      </div>`).join('');
+  const t = totalesCarritoVenta();
+  document.getElementById('v-subtotal').textContent = money(t.subtotal);
+  document.getElementById('v-desc-total').textContent = money(t.descuentoTotal);
+  document.getElementById('v-iva-total').textContent = money(t.ivaTotal);
+  document.getElementById('v-total').textContent = money(t.total);
+}
+document.getElementById('v-carrito-lista').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.li-quitar');
+  if(!btn) return;
+  carritoVenta.splice(Number(btn.dataset.idx),1);
+  renderCarritoVenta();
+});
+document.getElementById('v-descuento').addEventListener('input', renderCarritoVenta);
+document.getElementById('v-iva').addEventListener('input', renderCarritoVenta);
+
+document.getElementById('v-agregar-item').addEventListener('click', ()=>{
+  const productoId = document.getElementById('v-producto').value;
+  const producto = DB.productos.find(p=>p.id===productoId);
+  const cantidad = Number(document.getElementById('v-cantidad').value)||0;
+  const precio = Number(document.getElementById('v-precio').value)||0;
+  const descripcion = document.getElementById('v-descripcion').value.trim() || (producto?producto.nombre:'');
+  if(!descripcion){ toast('Elige un producto o escribe una descripción ⚠️'); return; }
+  if(cantidad<=0){ toast('La cantidad debe ser mayor a 0 ⚠️'); return; }
+  carritoVenta.push({
+    productoId: productoId || null,
+    codigo: producto?.sku || '',
+    descripcion,
+    cantidad,
+    precioUnitario: precio,
+    total: cantidad*precio
+  });
+  document.getElementById('v-producto').value = '';
+  document.getElementById('v-descripcion').value = '';
+  document.getElementById('v-cantidad').value = 1;
+  document.getElementById('v-precio').value = '';
+  renderCarritoVenta();
 });
 
 document.getElementById('form-venta').addEventListener('submit', (e)=>{
   e.preventDefault();
-  const productoId = document.getElementById('v-producto').value;
-  const producto = DB.productos.find(p=>p.id===productoId);
-  const cantidad = Number(document.getElementById('v-cantidad').value)||1;
-  const precio = Number(document.getElementById('v-precio').value)||0;
-  const descripcion = document.getElementById('v-descripcion').value.trim() || (producto?producto.nombre:'Venta');
+  if(carritoVenta.length===0){ toast('Agrega al menos un producto a la factura ⚠️'); return; }
   const tipoVenta = document.getElementById('v-tipo').value;
   const clienteId = document.getElementById('v-cliente').value || null;
 
@@ -437,29 +496,163 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
     return;
   }
 
-  if(producto){
-    if(producto.cantidad < cantidad){
+  for(const it of carritoVenta){
+    if(!it.productoId) continue;
+    const producto = DB.productos.find(p=>p.id===it.productoId);
+    if(producto && producto.cantidad < it.cantidad){
       if(!confirm(`Solo tienes ${producto.cantidad} de "${producto.nombre}" en inventario. ¿Registrar la venta de todos modos?`)) return;
     }
-    producto.cantidad = Math.max(0, producto.cantidad - cantidad);
   }
+  carritoVenta.forEach(it=>{
+    if(!it.productoId) return;
+    const producto = DB.productos.find(p=>p.id===it.productoId);
+    if(producto) producto.cantidad = Math.max(0, producto.cantidad - it.cantidad);
+  });
 
-  DB.ventas.push({
+  const t = totalesCarritoVenta();
+  DB.negocio.consecutivoFactura = (DB.negocio.consecutivoFactura||0) + 1;
+  const venta = {
     id: uid(),
-    productoId: productoId || null,
-    descripcion,
-    cantidad,
-    precio,
-    total: cantidad*precio,
+    numeroFactura: DB.negocio.consecutivoFactura,
     fecha: new Date().toISOString(),
     clienteId,
     tipoVenta,
     metodoPago: tipoVenta==='contado' ? document.getElementById('v-pago').value : null,
-    pagada: tipoVenta==='contado'
+    pagada: tipoVenta==='contado',
+    items: carritoVenta.slice(),
+    descuentoPct: t.descPct,
+    ivaPct: t.ivaPct,
+    subtotal: t.subtotal,
+    descuentoTotal: t.descuentoTotal,
+    ivaTotal: t.ivaTotal,
+    total: t.total
+  };
+  DB.ventas.push(venta);
+  saveDB();
+  closeModals();
+  toast('Factura registrada 💰');
+  renderAll();
+  mostrarFactura(venta.id);
+});
+
+/* ================= COMPRAS (entradas de inventario) ================= */
+let carritoCompra = [];
+
+function abrirModalCompra(){
+  carritoCompra = [];
+  const selP = document.getElementById('co-producto');
+  selP.innerHTML = '<option value="">— Elige un producto —</option>' +
+    DB.productos.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)} (disp: ${p.cantidad})</option>`).join('');
+  const selPr = document.getElementById('co-proveedor');
+  selPr.innerHTML = '<option value="">— Elige un proveedor —</option>' +
+    DB.proveedores.map(pr=>`<option value="${pr.id}">${escapeHtml(pr.nombre)}</option>`).join('');
+  document.getElementById('co-cantidad').value = 1;
+  document.getElementById('co-costo').value = '';
+  document.getElementById('co-numero-factura').value = '';
+  renderCarritoCompra();
+  openModal('compra');
+}
+
+function renderCarritoCompra(){
+  const cont = document.getElementById('co-carrito-lista');
+  cont.innerHTML = carritoCompra.length===0
+    ? '<div class="empty-state">Aún no has agregado productos a la compra</div>'
+    : carritoCompra.map((it,idx)=>`
+      <div class="list-item carrito-item">
+        <div class="li-main">
+          <span class="li-title">${escapeHtml(it.descripcion)}</span>
+          <span class="li-sub">${it.cantidad} x ${money(it.costoUnitario)}</span>
+        </div>
+        <span class="li-value">${money(it.total)}</span>
+        <button type="button" class="li-quitar" data-idx="${idx}">✕</button>
+      </div>`).join('');
+  document.getElementById('co-total').textContent = money(carritoCompra.reduce((a,it)=>a+it.total,0));
+}
+document.getElementById('co-carrito-lista').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.li-quitar');
+  if(!btn) return;
+  carritoCompra.splice(Number(btn.dataset.idx),1);
+  renderCarritoCompra();
+});
+
+document.getElementById('co-agregar-item').addEventListener('click', ()=>{
+  const productoId = document.getElementById('co-producto').value;
+  const producto = DB.productos.find(p=>p.id===productoId);
+  const cantidad = Number(document.getElementById('co-cantidad').value)||0;
+  const costo = Number(document.getElementById('co-costo').value)||0;
+  if(!producto){ toast('Elige un producto ⚠️'); return; }
+  if(cantidad<=0){ toast('La cantidad debe ser mayor a 0 ⚠️'); return; }
+  carritoCompra.push({
+    productoId,
+    descripcion: producto.nombre,
+    cantidad,
+    costoUnitario: costo,
+    total: cantidad*costo
+  });
+  document.getElementById('co-producto').value = '';
+  document.getElementById('co-cantidad').value = 1;
+  document.getElementById('co-costo').value = '';
+  renderCarritoCompra();
+});
+
+document.getElementById('form-compra').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  if(carritoCompra.length===0){ toast('Agrega al menos un producto a la compra ⚠️'); return; }
+  const proveedorId = document.getElementById('co-proveedor').value;
+  if(!proveedorId){ toast('Elige un proveedor ⚠️'); return; }
+
+  carritoCompra.forEach(it=>{
+    const producto = DB.productos.find(p=>p.id===it.productoId);
+    if(producto) producto.cantidad = producto.cantidad + it.cantidad;
+  });
+
+  DB.compras.push({
+    id: uid(),
+    fecha: new Date().toISOString(),
+    proveedorId,
+    numeroFacturaProveedor: document.getElementById('co-numero-factura').value.trim(),
+    items: carritoCompra.slice(),
+    total: carritoCompra.reduce((a,it)=>a+it.total,0)
   });
   saveDB();
   closeModals();
-  toast('Venta registrada 💰');
+  toast('Compra registrada 🧾');
+  renderAll();
+});
+
+/* ================= AJUSTES DE INVENTARIO ================= */
+function abrirModalAjuste(){
+  const sel = document.getElementById('aj-producto');
+  sel.innerHTML = '<option value="">— Elige un producto —</option>' +
+    DB.productos.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)} (disp: ${p.cantidad})</option>`).join('');
+  document.getElementById('aj-tipo').value = 'entrada';
+  document.getElementById('aj-cantidad').value = 1;
+  document.getElementById('aj-motivo').value = '';
+  openModal('ajuste');
+}
+
+document.getElementById('form-ajuste').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const productoId = document.getElementById('aj-producto').value;
+  const producto = DB.productos.find(p=>p.id===productoId);
+  if(!producto){ toast('Elige un producto ⚠️'); return; }
+  const tipo = document.getElementById('aj-tipo').value;
+  const cantidad = Number(document.getElementById('aj-cantidad').value)||0;
+  const motivo = document.getElementById('aj-motivo').value.trim();
+  if(cantidad<=0){ toast('La cantidad debe ser mayor a 0 ⚠️'); return; }
+
+  producto.cantidad = tipo==='entrada' ? producto.cantidad + cantidad : Math.max(0, producto.cantidad - cantidad);
+  DB.ajustesInventario.push({
+    id: uid(),
+    productoId,
+    tipo,
+    cantidad,
+    motivo,
+    fecha: new Date().toISOString()
+  });
+  saveDB();
+  closeModals();
+  toast('Ajuste registrado ⚖️');
   renderAll();
 });
 
@@ -517,6 +710,20 @@ document.getElementById('btn-guardar-perfil').addEventListener('click', ()=>{
   DB.negocio.moneda = document.getElementById('pf-moneda').value;
   saveDB();
   toast('Datos del negocio actualizados ✅');
+  renderAll();
+});
+
+document.getElementById('btn-guardar-facturacion').addEventListener('click', ()=>{
+  DB.negocio.nit = document.getElementById('pf-nit').value.trim();
+  DB.negocio.direccionNegocio = document.getElementById('pf-direccion-negocio').value.trim();
+  DB.negocio.telefonoNegocio = document.getElementById('pf-telefono-negocio').value.trim();
+  DB.negocio.resolucionDian = document.getElementById('pf-resolucion-dian').value.trim();
+  DB.negocio.rangoDesde = document.getElementById('pf-rango-desde').value.trim();
+  DB.negocio.rangoHasta = document.getElementById('pf-rango-hasta').value.trim();
+  DB.negocio.ciiu = document.getElementById('pf-ciiu').value.trim();
+  DB.negocio.agenteIva = document.getElementById('pf-agente-iva').value;
+  saveDB();
+  toast('Datos de facturación actualizados ✅');
   renderAll();
 });
 
@@ -842,8 +1049,10 @@ function renderFinanzas(){
   const ventasMes = ventasDelPeriodo('mes');
   const agrupado = {};
   ventasMes.forEach(v=>{
-    const key = v.descripcion || 'Venta';
-    agrupado[key] = (agrupado[key]||0) + v.cantidad;
+    (v.items||[]).forEach(it=>{
+      const key = it.descripcion || 'Venta';
+      agrupado[key] = (agrupado[key]||0) + it.cantidad;
+    });
   });
   const top = Object.entries(agrupado).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const topCont = document.getElementById('top-productos');
@@ -979,6 +1188,161 @@ function abrirCierreCaja(){
 }
 document.getElementById('btn-cierre-caja').addEventListener('click', abrirCierreCaja);
 
+/* ================= FACTURA IMPRIMIBLE ================= */
+function mostrarFactura(ventaId){
+  const venta = DB.ventas.find(v=>v.id===ventaId);
+  if(!venta) return;
+  const cliente = DB.clientes.find(c=>c.id===venta.clienteId);
+  const n = DB.negocio || {};
+  const fecha = new Date(venta.fecha);
+  const dd = String(fecha.getDate()).padStart(2,'0');
+  const mm = String(fecha.getMonth()+1).padStart(2,'0');
+  const aaaa = fecha.getFullYear();
+
+  const filasItems = venta.items.map(it=>`
+    <tr>
+      <td>${escapeHtml(it.codigo||'')}</td>
+      <td>${escapeHtml(it.descripcion)}</td>
+      <td>${money(it.precioUnitario)}</td>
+      <td>${it.cantidad}</td>
+      <td>${venta.descuentoPct||0}%</td>
+      <td>${venta.ivaPct||0}%</td>
+      <td>${money(it.total)}</td>
+    </tr>`).join('');
+
+  document.getElementById('detalle-titulo').textContent = `Factura de venta No. ${venta.numeroFactura}`;
+  document.getElementById('detalle-body').innerHTML = `
+    <button type="button" class="btn btn-secondary btn-block no-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+    <div class="factura-doc">
+      <div class="factura-header">
+        <div>
+          <strong>${escapeHtml(n.nombre||'')}</strong><br>
+          NIT: ${escapeHtml(n.nit||'')}<br>
+          Dirección: ${escapeHtml(n.direccionNegocio||'')}<br>
+          Teléfono: ${escapeHtml(n.telefonoNegocio||'')} &nbsp; Ciudad: ${escapeHtml(n.ciudad||'')}
+        </div>
+        <div class="num-box">
+          FACTURA DE VENTA<br>No. ${venta.numeroFactura}
+        </div>
+      </div>
+      <div style="font-size:11px;margin-bottom:8px;">
+        Resolución de autorización DIAN No. ${escapeHtml(n.resolucionDian||'(pendiente de trámite)')}
+        ${n.rangoDesde ? ` — Del No. ${escapeHtml(n.rangoDesde)} al No. ${escapeHtml(n.rangoHasta||'')}` : ''}
+        <br>Fecha de factura: ${dd}/${mm}/${aaaa}
+        ${n.agenteIva==='Sí' ? '<br>Calidad de agente retenedor de IVA: Sí' : ''}
+        ${n.ciiu ? `<br>Código CIIU / Tarifa ICA: ${escapeHtml(n.ciiu)}` : ''}
+      </div>
+      <div style="font-size:11px;margin-bottom:8px;border-top:1px solid #333;padding-top:6px;">
+        <strong>Vendido a:</strong> ${escapeHtml(cliente ? (cliente.nombres||cliente.nombre) : 'Consumidor final')}<br>
+        ${cliente ? `${escapeHtml(cliente.tipoIdentificacion||'')}: ${escapeHtml(cliente.numeroIdentificacion||'')}<br>` : ''}
+        ${cliente ? `Dirección: ${escapeHtml(cliente.direccion||'')} &nbsp; Ciudad: ${escapeHtml(cliente.ciudad||'')}<br>` : ''}
+        ${cliente ? `Teléfono: ${escapeHtml(cliente.celular||cliente.telefono||'')}` : ''}
+      </div>
+      <table>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Vr. Unitario</th><th>Cantidad</th><th>Dcto %</th><th>IVA %</th><th>Vr. Total</th></tr></thead>
+        <tbody>${filasItems}</tbody>
+      </table>
+      <div class="factura-totales">
+        <div class="cierre-line"><span>Total sin IVA</span><span>${money(venta.subtotal - venta.descuentoTotal)}</span></div>
+        <div class="cierre-line"><span>Descuento</span><span>${money(venta.descuentoTotal)}</span></div>
+        <div class="cierre-line"><span>IVA</span><span>${money(venta.ivaTotal)}</span></div>
+        <div class="cierre-line" style="font-weight:800;font-size:14px;"><span>Valor total</span><span>${money(venta.total)}</span></div>
+      </div>
+      <div style="font-size:11px;margin-top:10px;">
+        <strong>Forma de pago:</strong> ${venta.tipoVenta==='credito' ? 'Crédito' : `Contado (${escapeHtml(venta.metodoPago||'')})`}
+      </div>
+      <div class="factura-firmas">
+        <div>Firma autorizada del emisor</div>
+        <div>Firma de recibido del comprador</div>
+      </div>
+    </div>
+  `;
+  openModal('detalle');
+}
+
+function renderFacturas(){
+  const cont = document.getElementById('lista-facturas');
+  const ventasOrdenadas = DB.ventas.slice().sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,20);
+  if(ventasOrdenadas.length===0){
+    cont.innerHTML = '<div class="empty-state">Aún no has registrado facturas</div>';
+    return;
+  }
+  cont.innerHTML = ventasOrdenadas.map(v=>{
+    const cliente = DB.clientes.find(c=>c.id===v.clienteId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">Factura No. ${v.numeroFactura}</span>
+        <span class="li-sub">${fmtDate(v.fecha)} · ${escapeHtml(cliente ? (cliente.nombres||cliente.nombre) : 'Consumidor final')}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="li-value">${money(v.total)}</span>
+        <button data-accion="ver-factura" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Ver</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+document.getElementById('lista-facturas').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion="ver-factura"]');
+  if(btn) mostrarFactura(btn.dataset.id);
+});
+
+/* ================= KARDEX ================= */
+function poblarSelectKardex(){
+  const sel = document.getElementById('kardex-producto');
+  const actual = sel.value;
+  sel.innerHTML = DB.productos.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
+  if(actual && DB.productos.some(p=>p.id===actual)) sel.value = actual;
+}
+
+function renderKardex(){
+  const sel = document.getElementById('kardex-producto');
+  if(DB.productos.length===0){
+    sel.innerHTML = '';
+    document.getElementById('kardex-lista').innerHTML = '<div class="empty-state">Agrega productos para ver su Kardex</div>';
+    document.getElementById('kardex-saldo-actual').textContent = '0';
+    return;
+  }
+  poblarSelectKardex();
+  const productoId = sel.value;
+  const producto = DB.productos.find(p=>p.id===productoId);
+  document.getElementById('kardex-saldo-actual').textContent = producto ? producto.cantidad : '0';
+
+  const movimientos = [];
+  DB.compras.forEach(c=>{
+    (c.items||[]).forEach(it=>{
+      if(it.productoId===productoId) movimientos.push({fecha:c.fecha, tipo:'Entrada', documento:`Compra${c.numeroFacturaProveedor?' '+c.numeroFacturaProveedor:''}`, cantidad: it.cantidad});
+    });
+  });
+  DB.ventas.forEach(v=>{
+    (v.items||[]).forEach(it=>{
+      if(it.productoId===productoId) movimientos.push({fecha:v.fecha, tipo:'Salida', documento:`Factura #${v.numeroFactura}`, cantidad: -it.cantidad});
+    });
+  });
+  DB.ajustesInventario.forEach(a=>{
+    if(a.productoId===productoId) movimientos.push({fecha:a.fecha, tipo:'Ajuste', documento:a.motivo||'Ajuste', cantidad: a.tipo==='entrada' ? a.cantidad : -a.cantidad});
+  });
+  movimientos.sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+
+  const cont = document.getElementById('kardex-lista');
+  if(movimientos.length===0){
+    cont.innerHTML = '<div class="empty-state">Sin movimientos registrados todavía para este producto</div>';
+    return;
+  }
+  let saldo = 0;
+  cont.innerHTML = movimientos.map(m=>{
+    saldo += m.cantidad;
+    const signo = m.cantidad>=0 ? '+' : '';
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${m.tipo} — ${escapeHtml(m.documento)}</span>
+        <span class="li-sub">${fmtDate(m.fecha)}</span>
+      </div>
+      <span class="li-value ${m.cantidad<0?'neg':''}">${signo}${m.cantidad} · Saldo: ${saldo}</span>
+    </div>`;
+  }).join('');
+}
+document.getElementById('kardex-producto').addEventListener('change', renderKardex);
+
 function renderPerfil(){
   if(!DB.negocio) return;
   document.getElementById('pf-propietario').value = DB.negocio.propietario||'';
@@ -986,6 +1350,14 @@ function renderPerfil(){
   document.getElementById('pf-tipo').value = DB.negocio.tipo||'';
   document.getElementById('pf-ciudad').value = DB.negocio.ciudad||'';
   document.getElementById('pf-moneda').value = DB.negocio.moneda||'COP';
+  document.getElementById('pf-nit').value = DB.negocio.nit||'';
+  document.getElementById('pf-direccion-negocio').value = DB.negocio.direccionNegocio||'';
+  document.getElementById('pf-telefono-negocio').value = DB.negocio.telefonoNegocio||'';
+  document.getElementById('pf-resolucion-dian').value = DB.negocio.resolucionDian||'';
+  document.getElementById('pf-rango-desde').value = DB.negocio.rangoDesde||'';
+  document.getElementById('pf-rango-hasta').value = DB.negocio.rangoHasta||'';
+  document.getElementById('pf-ciiu').value = DB.negocio.ciiu||'';
+  document.getElementById('pf-agente-iva').value = DB.negocio.agenteIva||'No';
   document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada con el celular ${emailToTelefono(currentUser.email)}` : '';
 }
 
@@ -1001,7 +1373,9 @@ function renderAll(){
   renderProductos();
   renderClientes();
   renderProveedores();
+  renderKardex();
   renderFinanzas();
+  renderFacturas();
   renderPerfil();
 }
 

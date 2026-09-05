@@ -186,6 +186,7 @@
           <button class="tab active" data-tab="productos">📦 Productos</button>
           <button class="tab" data-tab="clientes">👥 Clientes</button>
           <button class="tab" data-tab="proveedores">🚚 Proveedores</button>
+          <button class="tab" data-tab="kardex">📋 Kardex</button>
         </div>
 
         <div id="tab-productos" class="tab-panel">
@@ -204,6 +205,19 @@
           <button class="btn btn-primary btn-block" data-open="proveedor">+ Agregar proveedor</button>
           <div id="lista-proveedores" class="list"></div>
         </div>
+
+        <div id="tab-kardex" class="tab-panel" hidden>
+          <label>Producto
+            <select id="kardex-producto"></select>
+          </label>
+          <button class="btn btn-secondary btn-block" data-open="ajuste">⚖️ Registrar ajuste de inventario</button>
+          <div class="finance-rows" style="margin-top:12px;">
+            <div class="finance-row"><span>Existencia actual</span><strong id="kardex-saldo-actual">0</strong></div>
+          </div>
+          <h3 class="section-title">Movimientos</h3>
+          <p style="font-size:11px;color:var(--gris-texto);">Aquí verás las entradas (compras), salidas (ventas) y ajustes registrados desde que empezaste a usar este módulo.</p>
+          <div id="kardex-lista" class="list"></div>
+        </div>
       </section>
 
       <!-- REGISTRAR -->
@@ -216,6 +230,7 @@
           <button class="register-btn register-dark" data-open="producto">📦<span>Registrar producto</span></button>
           <button class="register-btn register-blue" data-open="cliente">👥<span>Registrar cliente</span></button>
           <button class="register-btn register-purple" data-open="proveedor">🚚<span>Registrar proveedor</span></button>
+          <button class="register-btn register-teal" data-open="compra">🧾<span>Registrar compra</span></button>
         </div>
       </section>
 
@@ -256,6 +271,9 @@
         <h3 class="section-title">🧾 Cuentas por cobrar</h3>
         <div id="lista-deudores" class="list"></div>
         <button class="btn btn-secondary btn-block" id="btn-cierre-caja" style="margin-top:10px;">📋 Cierre de caja de hoy</button>
+
+        <h3 class="section-title">🧾 Facturas recientes</h3>
+        <div id="lista-facturas" class="list"></div>
       </section>
 
       <!-- PERFIL -->
@@ -288,6 +306,39 @@
             </select>
           </label>
           <button class="btn btn-primary btn-block" id="btn-guardar-perfil">Guardar cambios</button>
+        </div>
+
+        <div class="profile-card">
+          <h3>🧾 Datos de facturación</h3>
+          <p style="font-size:12px;">Estos datos aparecen en el comprobante de venta. Si aún no tienes tu resolución de la DIAN, deja ese campo vacío y complétalo cuando la tramites.</p>
+          <label>NIT del negocio
+            <input type="text" id="pf-nit">
+          </label>
+          <label>Dirección del negocio
+            <input type="text" id="pf-direccion-negocio">
+          </label>
+          <label>Teléfono del negocio
+            <input type="tel" id="pf-telefono-negocio">
+          </label>
+          <label>Resolución de autorización DIAN No. (opcional)
+            <input type="text" id="pf-resolucion-dian">
+          </label>
+          <label>Rango de numeración autorizado (opcional)
+            <div class="phone-input">
+              <input type="text" id="pf-rango-desde" placeholder="Del No.">
+              <input type="text" id="pf-rango-hasta" placeholder="Al No.">
+            </div>
+          </label>
+          <label>Código CIIU / Tarifa ICA (opcional)
+            <input type="text" id="pf-ciiu">
+          </label>
+          <label>¿Eres agente retenedor de IVA?
+            <select id="pf-agente-iva">
+              <option value="No">No</option>
+              <option value="Sí">Sí</option>
+            </select>
+          </label>
+          <button class="btn btn-primary btn-block" id="btn-guardar-facturacion">Guardar datos de facturación</button>
         </div>
 
         <div class="profile-card" id="install-card" hidden>
@@ -422,19 +473,28 @@
 
     <div class="modal" id="modal-venta" hidden>
       <div class="modal-header"><h3>💰 Registrar venta</h3><button class="modal-close">✕</button></div>
-      <form id="form-venta">
+
+      <div class="item-form">
         <label>Producto o servicio
           <select id="v-producto"><option value="">— Sin producto (servicio libre) —</option></select>
         </label>
         <label>Descripción (si no elegiste producto)
           <input type="text" id="v-descripcion" placeholder="Ej: Corte de cabello">
         </label>
-        <label>Cantidad
-          <input type="number" id="v-cantidad" min="1" value="1" required>
-        </label>
-        <label>Precio unitario
-          <input type="number" id="v-precio" min="0" step="0.01" required>
-        </label>
+        <div class="item-form-row">
+          <label>Cantidad
+            <input type="number" id="v-cantidad" min="1" value="1">
+          </label>
+          <label>Precio unitario
+            <input type="number" id="v-precio" min="0" step="0.01">
+          </label>
+        </div>
+        <button type="button" class="btn btn-secondary btn-block" id="v-agregar-item">+ Agregar a la factura</button>
+      </div>
+
+      <div id="v-carrito-lista" class="list" style="margin:14px 0;"></div>
+
+      <form id="form-venta">
         <label>Cliente (opcional, obligatorio si es a crédito)
           <select id="v-cliente"><option value="">— Sin cliente —</option></select>
         </label>
@@ -452,8 +512,73 @@
           </select>
         </label>
         <p class="info-box" id="v-credito-aviso" hidden>Esta venta quedará registrada como cuenta por cobrar a nombre del cliente elegido.</p>
+        <div class="item-form-row">
+          <label>Descuento (%)
+            <input type="number" id="v-descuento" min="0" max="100" step="0.01" value="0">
+          </label>
+          <label>IVA (%)
+            <input type="number" id="v-iva" min="0" max="100" step="0.01" value="0">
+          </label>
+        </div>
+        <div class="cierre-line"><span>Subtotal</span><span id="v-subtotal">$0</span></div>
+        <div class="cierre-line"><span>Descuento</span><span id="v-desc-total">$0</span></div>
+        <div class="cierre-line"><span>IVA</span><span id="v-iva-total">$0</span></div>
         <div class="modal-total">Total: <strong id="v-total">$0</strong></div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar venta</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar factura</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-compra" hidden>
+      <div class="modal-header"><h3>🧾 Registrar compra</h3><button class="modal-close">✕</button></div>
+
+      <div class="item-form">
+        <label>Producto
+          <select id="co-producto"><option value="">— Elige un producto —</option></select>
+        </label>
+        <div class="item-form-row">
+          <label>Cantidad comprada
+            <input type="number" id="co-cantidad" min="1" value="1">
+          </label>
+          <label>Costo unitario
+            <input type="number" id="co-costo" min="0" step="0.01">
+          </label>
+        </div>
+        <button type="button" class="btn btn-secondary btn-block" id="co-agregar-item">+ Agregar a la compra</button>
+      </div>
+
+      <div id="co-carrito-lista" class="list" style="margin:14px 0;"></div>
+
+      <form id="form-compra">
+        <label>Proveedor
+          <select id="co-proveedor" required><option value="">— Elige un proveedor —</option></select>
+        </label>
+        <label>N.° de factura del proveedor (opcional)
+          <input type="text" id="co-numero-factura" placeholder="Ej: FV-00123">
+        </label>
+        <div class="modal-total">Total: <strong id="co-total">$0</strong></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar compra</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-ajuste" hidden>
+      <div class="modal-header"><h3>⚖️ Ajuste de inventario</h3><button class="modal-close">✕</button></div>
+      <form id="form-ajuste">
+        <label>Producto
+          <select id="aj-producto" required><option value="">— Elige un producto —</option></select>
+        </label>
+        <label>Tipo de ajuste
+          <select id="aj-tipo">
+            <option value="entrada">Entrada (+ suma al inventario)</option>
+            <option value="salida">Salida (- resta del inventario)</option>
+          </select>
+        </label>
+        <label>Cantidad
+          <input type="number" id="aj-cantidad" min="1" value="1" required>
+        </label>
+        <label>Motivo
+          <input type="text" id="aj-motivo" placeholder="Ej: Producto dañado, conteo físico, pérdida" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar ajuste</button>
       </form>
     </div>
 
