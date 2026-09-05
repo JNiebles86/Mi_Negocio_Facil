@@ -336,10 +336,17 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   .nav-btn:hover{background:var(--gris-fondo);}
   .nav-btn.active{background:var(--verde);color:#fff;}
   .nav-btn-center{
-    order:-1;width:auto;height:auto;border-radius:10px;margin-top:0;margin-bottom:10px;
+    order:2;width:auto;height:auto;border-radius:10px;margin-top:0;margin-bottom:0;
     justify-content:flex-start;box-shadow:none;padding:11px 14px;
   }
   .nav-btn-center .nav-label{display:inline;font-size:13.5px;font-weight:700;}
+
+  /* orden de la barra lateral: Inicio, Registrar, Mi negocio, Finanzas, Perfil, Aprenda */
+  .bottom-nav [data-view="inicio"]{order:1;}
+  .bottom-nav [data-view="negocio"]{order:3;}
+  .bottom-nav [data-view="finanzas"]{order:4;}
+  .bottom-nav [data-view="perfil"]{order:5;}
+  .bottom-nav [data-view="aprenda"]{order:6;}
 
   .modal-backdrop{align-items:center;}
   .modal{width:100%;max-width:560px;border-radius:20px;max-height:85vh;}

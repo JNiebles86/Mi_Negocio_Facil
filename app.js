@@ -388,6 +388,8 @@ document.getElementById('lista-proveedores').addEventListener('click', (e)=>{
   if(btn.dataset.accion==='eliminar-proveedor') eliminarProveedor(id);
 });
 
+document.getElementById('buscar-proveedor').addEventListener('input', renderProveedores);
+
 /* ================= VENTAS (factura con carrito multi-producto) ================= */
 let carritoVenta = [];
 
@@ -1000,7 +1002,18 @@ function renderProveedores(){
     cont.innerHTML = '<div class="empty-state">Aún no tienes proveedores registrados 🚚</div>';
     return;
   }
-  cont.innerHTML = DB.proveedores.map(p=>{
+  const filtro = normalizarTexto(document.getElementById('buscar-proveedor').value.trim());
+  const lista = filtro
+    ? DB.proveedores.filter(p=>
+        normalizarTexto(p.nombre||'').includes(filtro) ||
+        normalizarTexto(p.numeroIdentificacion||'').includes(filtro)
+      )
+    : DB.proveedores;
+  if(lista.length===0){
+    cont.innerHTML = '<div class="empty-state">No se encontraron proveedores con esa búsqueda 🔍</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(p=>{
     const tipoTxt = p.tipoPersona==='juridica' ? 'Persona jurídica' : 'Persona natural';
     const estado = p.estado || 'Activo';
     return `<div class="list-item">
