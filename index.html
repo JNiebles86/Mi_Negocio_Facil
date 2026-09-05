@@ -41,22 +41,33 @@
       </div>
 
       <form id="form-signin">
-        <label>Correo electrónico
-          <input type="email" id="si-correo" required>
+        <label>Número de celular
+          <div class="phone-input">
+            <span class="phone-prefix">+57</span>
+            <input type="tel" id="si-telefono" inputmode="numeric" placeholder="3001234567" maxlength="10" required>
+          </div>
         </label>
-        <label>Contraseña
-          <input type="password" id="si-clave" required minlength="6">
+        <label>Contraseña (6 dígitos)
+          <input type="password" id="si-clave" inputmode="numeric" pattern="\d{6}" maxlength="6" required>
         </label>
         <p class="form-error" id="si-error" hidden></p>
         <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
+        <button type="button" class="link-btn" id="btn-olvide-clave">¿Olvidaste tu contraseña?</button>
+        <p class="info-box" id="olvide-mensaje" hidden>La recuperación automática por SMS todavía no está activada en esta app. Mientras tanto, contáctanos directamente para verificar tu identidad y restablecer tu contraseña.</p>
       </form>
 
       <form id="form-signup" hidden>
-        <label>Correo electrónico
-          <input type="email" id="su-correo" required>
+        <label>Número de celular
+          <div class="phone-input">
+            <span class="phone-prefix">+57</span>
+            <input type="tel" id="su-telefono" inputmode="numeric" placeholder="3001234567" maxlength="10" required>
+          </div>
         </label>
-        <label>Contraseña (mínimo 6 caracteres)
-          <input type="password" id="su-clave" required minlength="6">
+        <label>Crea una contraseña (6 dígitos)
+          <input type="password" id="su-clave" inputmode="numeric" pattern="\d{6}" maxlength="6" required>
+        </label>
+        <label>Confirma la contraseña
+          <input type="password" id="su-clave2" inputmode="numeric" pattern="\d{6}" maxlength="6" required>
         </label>
         <p class="form-error" id="su-error" hidden></p>
         <button type="submit" class="btn btn-primary btn-lg">Crear cuenta</button>

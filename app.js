@@ -388,17 +388,39 @@ document.querySelectorAll('#login-tabs .tab').forEach(tab=>{
     tab.classList.add('active');
     document.getElementById('form-signin').hidden = tab.dataset.logintab !== 'signin';
     document.getElementById('form-signup').hidden = tab.dataset.logintab !== 'signup';
+    document.getElementById('olvide-mensaje').hidden = true;
   });
 });
 
+/* Firebase Auth no tiene un proveedor nativo de "teléfono + contraseña", así que
+   simulamos uno: el teléfono se convierte en un correo sintético interno y se
+   usa el proveedor de correo/contraseña por debajo. El usuario nunca ve esto. */
+const PHONE_PREFIX = '57';
+const PHONE_DOMAIN = 'phone.minegociofacil.local';
+
+function telefonoToEmail(telefono){
+  return `${PHONE_PREFIX}${telefono.replace(/\D/g,'')}@${PHONE_DOMAIN}`;
+}
+function emailToTelefono(email){
+  const local = (email||'').split('@')[0];
+  const digits = local.startsWith(PHONE_PREFIX) ? local.slice(PHONE_PREFIX.length) : local;
+  return `+${PHONE_PREFIX} ${digits}`;
+}
+function validarTelefono(telefono){
+  return /^\d{10}$/.test(telefono.replace(/\D/g,''));
+}
+function validarPin(pin){
+  return /^\d{6}$/.test(pin);
+}
+
 function authErrorMessage(err){
   const mensajes = {
-    'auth/invalid-email': 'Ese correo electrónico no es válido.',
-    'auth/user-not-found': 'No existe una cuenta con ese correo.',
+    'auth/invalid-email': 'Ese número de celular no es válido.',
+    'auth/user-not-found': 'No existe una cuenta con ese número de celular.',
     'auth/wrong-password': 'Contraseña incorrecta.',
-    'auth/invalid-credential': 'Correo o contraseña incorrectos.',
-    'auth/email-already-in-use': 'Ya existe una cuenta con ese correo.',
-    'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.'
+    'auth/invalid-credential': 'Número o contraseña incorrectos.',
+    'auth/email-already-in-use': 'Ya existe una cuenta con ese número de celular.',
+    'auth/weak-password': 'La contraseña debe tener 6 dígitos.'
   };
   return mensajes[err.code] || 'Ocurrió un error. Intenta de nuevo.';
 }
@@ -407,8 +429,20 @@ document.getElementById('form-signin').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const errBox = document.getElementById('si-error');
   errBox.hidden = true;
+  const telefono = document.getElementById('si-telefono').value.trim();
+  const clave = document.getElementById('si-clave').value;
+  if(!validarTelefono(telefono)){
+    errBox.textContent = 'Ingresa un número de celular válido (10 dígitos).';
+    errBox.hidden = false;
+    return;
+  }
+  if(!validarPin(clave)){
+    errBox.textContent = 'La contraseña debe tener 6 dígitos.';
+    errBox.hidden = false;
+    return;
+  }
   try{
-    await signInWithEmailAndPassword(auth, document.getElementById('si-correo').value.trim(), document.getElementById('si-clave').value);
+    await signInWithEmailAndPassword(auth, telefonoToEmail(telefono), clave);
   }catch(err){
     errBox.textContent = authErrorMessage(err);
     errBox.hidden = false;
@@ -419,17 +453,45 @@ document.getElementById('form-signup').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const errBox = document.getElementById('su-error');
   errBox.hidden = true;
+  const telefono = document.getElementById('su-telefono').value.trim();
+  const clave = document.getElementById('su-clave').value;
+  const clave2 = document.getElementById('su-clave2').value;
+  if(!validarTelefono(telefono)){
+    errBox.textContent = 'Ingresa un número de celular válido (10 dígitos).';
+    errBox.hidden = false;
+    return;
+  }
+  if(!validarPin(clave)){
+    errBox.textContent = 'La contraseña debe tener 6 dígitos.';
+    errBox.hidden = false;
+    return;
+  }
+  if(clave !== clave2){
+    errBox.textContent = 'Las contraseñas no coinciden.';
+    errBox.hidden = false;
+    return;
+  }
   try{
-    await createUserWithEmailAndPassword(auth, document.getElementById('su-correo').value.trim(), document.getElementById('su-clave').value);
+    await createUserWithEmailAndPassword(auth, telefonoToEmail(telefono), clave);
   }catch(err){
     errBox.textContent = authErrorMessage(err);
     errBox.hidden = false;
   }
 });
 
+document.getElementById('btn-olvide-clave').addEventListener('click', ()=>{
+  document.getElementById('olvide-mensaje').hidden = false;
+});
+
 document.getElementById('btn-cerrar-sesion').addEventListener('click', async ()=>{
   if(confirm('¿Cerrar sesión?')){
     await signOut(auth);
+    document.getElementById('form-signin').reset();
+    document.getElementById('form-signup').reset();
+    document.getElementById('olvide-mensaje').hidden = true;
+    document.querySelectorAll('#login-tabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.logintab==='signin'));
+    document.getElementById('form-signin').hidden = false;
+    document.getElementById('form-signup').hidden = true;
   }
 });
 
@@ -587,7 +649,7 @@ function renderPerfil(){
   document.getElementById('pf-tipo').value = DB.negocio.tipo||'';
   document.getElementById('pf-ciudad').value = DB.negocio.ciudad||'';
   document.getElementById('pf-moneda').value = DB.negocio.moneda||'COP';
-  document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada como ${currentUser.email}` : '';
+  document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada con el celular ${emailToTelefono(currentUser.email)}` : '';
 }
 
 function renderTopbar(){

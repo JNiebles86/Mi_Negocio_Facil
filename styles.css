@@ -195,6 +195,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .install-steps li{margin-bottom:6px;}
 
 .form-error{background:#fdecea;color:#c0392b;border-radius:8px;padding:8px 12px;font-size:13px;margin:-4px 0 0;}
+.info-box{background:#eaf2f8;color:var(--azul-claro);border-radius:8px;padding:10px 12px;font-size:13px;margin:-4px 0 0;}
+
+.phone-input{display:flex;gap:8px;align-items:stretch;}
+.phone-prefix{display:flex;align-items:center;padding:0 12px;border-radius:12px;border:1px solid var(--borde);background:#eef1f4;color:var(--gris-texto);font-weight:600;}
+.phone-input input{flex:1;min-width:0;}
+
+.link-btn{background:none;border:none;color:var(--azul-claro);text-decoration:underline;font-size:13px;cursor:pointer;padding:2px 0;align-self:center;}
 
 /* goals progress */
 .goal-item{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);}
@@ -260,6 +267,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   }
   #app{background:#0b1620;}
   input,select,textarea{background:#0e1c2a;color:#eef2f5;border-color:#22394d;}
+  .phone-prefix{background:#0e1c2a;color:#9fb0bd;border-color:#22394d;}
+  .info-box{background:#0e2436;color:#9fc4e0;}
   .finance-total{background:var(--azul);}
   p{color:#9fb0bd;}
 }
