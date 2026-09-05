@@ -171,6 +171,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .register-yellow{background:var(--amarillo);color:var(--azul);}
 .register-dark{background:var(--azul);}
 .register-blue{background:var(--azul-claro);}
+.register-purple{background:#6b4fa0;}
 
 /* finanzas */
 .finance-rows{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
@@ -202,6 +203,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .phone-input input{flex:1;min-width:0;}
 
 .link-btn{background:none;border:none;color:var(--azul-claro);text-decoration:underline;font-size:13px;cursor:pointer;padding:2px 0;align-self:center;}
+
+/* Aprenda */
+.learn-item{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:var(--sombra);margin-bottom:10px;}
+.learn-item summary{font-weight:700;cursor:pointer;color:var(--azul);}
+.learn-item p{margin:10px 0 0;font-size:13px;}
+
+.video-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.video-link{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:var(--sombra);text-decoration:none;}
+.video-title{font-size:13px;font-weight:600;color:var(--azul);}
+.video-cta{font-size:11px;font-weight:700;color:var(--verde-oscuro);white-space:nowrap;}
 
 /* goals progress */
 .goal-item{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);}
@@ -262,9 +273,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 
 @media (prefers-color-scheme: dark){
   html,body{background:#0b1620;color:#eef2f5;}
-  .card,.list-item,.finance-row,.profile-card,.onboarding-card,.bar-chart,.goal-item,.modal,.bottom-nav,.quick-btn,.period-tab,.tab{
+  .card,.list-item,.finance-row,.profile-card,.onboarding-card,.bar-chart,.goal-item,.modal,.bottom-nav,.quick-btn,.period-tab,.tab,.learn-item,.video-link{
     background:#132434;color:#eef2f5;
   }
+  .learn-item summary,.video-title{color:#eef2f5;}
   #app{background:#0b1620;}
   input,select,textarea{background:#0e1c2a;color:#eef2f5;border-color:#22394d;}
   .phone-prefix{background:#0e1c2a;color:#9fb0bd;border-color:#22394d;}

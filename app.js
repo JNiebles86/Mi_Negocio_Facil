@@ -36,13 +36,14 @@ let currentUser = null;
 
 /* ---------- Persistencia (Firestore, por usuario) ---------- */
 function emptyDB(){
-  return { negocio: null, productos: [], clientes: [], ventas: [], gastos: [], metas: [] };
+  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], gastos: [], metas: [] };
 }
 
 async function loadUserDB(uidUsuario){
   const ref = doc(db, 'negocios', uidUsuario);
   const snap = await getDoc(ref);
-  if(snap.exists()) return snap.data();
+  // Se combina con emptyDB() para que cuentas creadas antes de agregar un campo nuevo (ej. proveedores) no rompan la app.
+  if(snap.exists()) return { ...emptyDB(), ...snap.data() };
 
   // Cuenta nueva: si este navegador tiene datos de una versión anterior (sin cuentas), los migramos.
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -50,9 +51,10 @@ async function loadUserDB(uidUsuario){
     try{
       const datosViejos = JSON.parse(raw);
       if(datosViejos && datosViejos.negocio){
-        await setDoc(ref, datosViejos);
+        const migrado = { ...emptyDB(), ...datosViejos };
+        await setDoc(ref, migrado);
         localStorage.removeItem(STORAGE_KEY);
-        return datosViejos;
+        return migrado;
       }
     }catch(e){ /* datos corruptos, se ignoran */ }
   }
@@ -167,7 +169,12 @@ backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) closeModals();
 document.querySelectorAll('.modal-close').forEach(b=>b.addEventListener('click', closeModals));
 
 document.querySelectorAll('[data-open]').forEach(el=>{
-  el.addEventListener('click', ()=> openModal(el.dataset.open));
+  el.addEventListener('click', ()=>{
+    const tipo = el.dataset.open;
+    if(tipo==='cliente') return abrirModalCliente(null);
+    if(tipo==='proveedor') return abrirModalProveedor(null);
+    openModal(tipo);
+  });
 });
 document.getElementById('btn-nueva-meta').addEventListener('click', ()=> openModal('meta'));
 
@@ -207,31 +214,120 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
 });
 
 function eliminarProducto(id){
+  if(!confirm('¿Eliminar este producto?')) return;
   DB.productos = DB.productos.filter(p=>p.id!==id);
   saveDB(); renderAll();
 }
 
+document.getElementById('lista-productos').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion]');
+  if(!btn) return;
+  if(btn.dataset.accion==='eliminar-producto') eliminarProducto(btn.dataset.id);
+});
+
 /* ================= CLIENTES ================= */
+function abrirModalCliente(cliente){
+  document.getElementById('c-id').value = cliente?.id || '';
+  document.getElementById('c-nombre').value = cliente?.nombre || '';
+  document.getElementById('c-telefono').value = cliente?.telefono || '';
+  document.getElementById('c-correo').value = cliente?.correo || '';
+  document.getElementById('c-saldo').value = cliente?.saldoPendiente || 0;
+  document.getElementById('cliente-modal-titulo').textContent = cliente ? '👥 Editar cliente' : '👥 Registrar cliente';
+  document.getElementById('cliente-submit-btn').textContent = cliente ? 'Guardar cambios' : 'Guardar cliente';
+  openModal('cliente');
+}
+function editarCliente(id){
+  const cliente = DB.clientes.find(c=>c.id===id);
+  if(cliente) abrirModalCliente(cliente);
+}
+function eliminarCliente(id){
+  if(!confirm('¿Eliminar este cliente?')) return;
+  DB.clientes = DB.clientes.filter(c=>c.id!==id);
+  saveDB(); renderAll();
+}
+
 document.getElementById('form-cliente').addEventListener('submit', (e)=>{
   e.preventDefault();
-  DB.clientes.push({
-    id: uid(),
+  const id = document.getElementById('c-id').value;
+  const datos = {
     nombre: document.getElementById('c-nombre').value.trim(),
     telefono: document.getElementById('c-telefono').value.trim(),
     correo: document.getElementById('c-correo').value.trim(),
     saldoPendiente: Number(document.getElementById('c-saldo').value)||0
-  });
+  };
+  if(id){
+    const cliente = DB.clientes.find(c=>c.id===id);
+    if(cliente) Object.assign(cliente, datos);
+  } else {
+    DB.clientes.push({ id: uid(), ...datos });
+  }
   saveDB();
   e.target.reset();
   closeModals();
-  toast('Cliente guardado ✅');
+  toast(id ? 'Cliente actualizado ✅' : 'Cliente guardado ✅');
   renderAll();
 });
 
-function eliminarCliente(id){
-  DB.clientes = DB.clientes.filter(c=>c.id!==id);
+document.getElementById('lista-clientes').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion]');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  if(btn.dataset.accion==='editar-cliente') editarCliente(id);
+  if(btn.dataset.accion==='eliminar-cliente') eliminarCliente(id);
+});
+
+/* ================= PROVEEDORES ================= */
+function abrirModalProveedor(proveedor){
+  document.getElementById('pr-id').value = proveedor?.id || '';
+  document.getElementById('pr-nombre').value = proveedor?.nombre || '';
+  document.getElementById('pr-provee').value = proveedor?.provee || '';
+  document.getElementById('pr-telefono').value = proveedor?.telefono || '';
+  document.getElementById('pr-correo').value = proveedor?.correo || '';
+  document.getElementById('pr-saldo').value = proveedor?.saldoPendiente || 0;
+  document.getElementById('proveedor-modal-titulo').textContent = proveedor ? '🚚 Editar proveedor' : '🚚 Registrar proveedor';
+  document.getElementById('proveedor-submit-btn').textContent = proveedor ? 'Guardar cambios' : 'Guardar proveedor';
+  openModal('proveedor');
+}
+function editarProveedor(id){
+  const proveedor = DB.proveedores.find(p=>p.id===id);
+  if(proveedor) abrirModalProveedor(proveedor);
+}
+function eliminarProveedor(id){
+  if(!confirm('¿Eliminar este proveedor?')) return;
+  DB.proveedores = DB.proveedores.filter(p=>p.id!==id);
   saveDB(); renderAll();
 }
+
+document.getElementById('form-proveedor').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const id = document.getElementById('pr-id').value;
+  const datos = {
+    nombre: document.getElementById('pr-nombre').value.trim(),
+    provee: document.getElementById('pr-provee').value.trim(),
+    telefono: document.getElementById('pr-telefono').value.trim(),
+    correo: document.getElementById('pr-correo').value.trim(),
+    saldoPendiente: Number(document.getElementById('pr-saldo').value)||0
+  };
+  if(id){
+    const proveedor = DB.proveedores.find(p=>p.id===id);
+    if(proveedor) Object.assign(proveedor, datos);
+  } else {
+    DB.proveedores.push({ id: uid(), ...datos });
+  }
+  saveDB();
+  e.target.reset();
+  closeModals();
+  toast(id ? 'Proveedor actualizado ✅' : 'Proveedor guardado ✅');
+  renderAll();
+});
+
+document.getElementById('lista-proveedores').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion]');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  if(btn.dataset.accion==='editar-proveedor') editarProveedor(id);
+  if(btn.dataset.accion==='eliminar-proveedor') eliminarProveedor(id);
+});
 
 /* ================= VENTAS ================= */
 function prepararModalVenta(){
@@ -332,6 +428,12 @@ function eliminarMeta(id){
   saveDB(); renderAll();
 }
 
+document.getElementById('lista-metas').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion]');
+  if(!btn) return;
+  if(btn.dataset.accion==='eliminar-meta') eliminarMeta(btn.dataset.id);
+});
+
 /* ================= PERFIL ================= */
 document.getElementById('btn-guardar-perfil').addEventListener('click', ()=>{
   DB.negocio.propietario = document.getElementById('pf-propietario').value.trim();
@@ -367,7 +469,7 @@ document.getElementById('input-importar').addEventListener('change', (e)=>{
       const data = JSON.parse(reader.result);
       if(!data.negocio){ toast('El archivo no parece un respaldo válido ❌'); return; }
       if(confirm('Esto reemplazará la información actual con la del respaldo. ¿Continuar?')){
-        DB = data;
+        DB = { ...emptyDB(), ...data };
         saveDB();
         showView('app');
         switchView(currentView);
@@ -542,7 +644,7 @@ function renderProductos(){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value">${money(p.precioVenta)}</span>
-        <button onclick="eliminarProducto('${p.id}')" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+        <button data-accion="eliminar-producto" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
       </div>
     </div>`;
   }).join('');
@@ -562,7 +664,33 @@ function renderClientes(){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         ${c.saldoPendiente>0 ? `<span class="li-value neg">Debe ${money(c.saldoPendiente)}</span>` : `<span class="li-value">Al día</span>`}
-        <button onclick="eliminarCliente('${c.id}')" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+        <div style="display:flex;gap:6px;">
+          <button data-accion="editar-cliente" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
+          <button data-accion="eliminar-cliente" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProveedores(){
+  const cont = document.getElementById('lista-proveedores');
+  if(DB.proveedores.length===0){
+    cont.innerHTML = '<div class="empty-state">Aún no tienes proveedores registrados 🚚</div>';
+    return;
+  }
+  cont.innerHTML = DB.proveedores.map(p=>{
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(p.nombre)}</span>
+        <span class="li-sub">${escapeHtml(p.provee || p.telefono || p.correo || 'Sin datos')}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        ${p.saldoPendiente>0 ? `<span class="li-value neg">Le debes ${money(p.saldoPendiente)}</span>` : `<span class="li-value">Al día</span>`}
+        <div style="display:flex;gap:6px;">
+          <button data-accion="editar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
+          <button data-accion="eliminar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -634,7 +762,7 @@ function renderMetas(){
     else if(pct>=70) msg += ' ¡Sigue así! 🚀';
     return `<div class="goal-item">
       <div class="goal-top"><span>${label} (${periodoTxt})</span>
-        <button onclick="eliminarMeta('${m.id}')" style="background:none;border:none;color:#d9534f;font-weight:700;cursor:pointer;">✕</button>
+        <button data-accion="eliminar-meta" data-id="${m.id}" style="background:none;border:none;color:#d9534f;font-weight:700;cursor:pointer;">✕</button>
       </div>
       <div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
       <div class="goal-msg">${money(valorActual)} de ${money(m.valor)} — ${msg}</div>
@@ -663,6 +791,7 @@ function renderAll(){
   renderInicio();
   renderProductos();
   renderClientes();
+  renderProveedores();
   renderFinanzas();
   renderPerfil();
 }

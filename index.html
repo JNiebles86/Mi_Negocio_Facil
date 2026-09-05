@@ -185,6 +185,7 @@
         <div class="tabs" id="negocio-tabs">
           <button class="tab active" data-tab="productos">📦 Productos</button>
           <button class="tab" data-tab="clientes">👥 Clientes</button>
+          <button class="tab" data-tab="proveedores">🚚 Proveedores</button>
         </div>
 
         <div id="tab-productos" class="tab-panel">
@@ -195,6 +196,11 @@
         <div id="tab-clientes" class="tab-panel" hidden>
           <button class="btn btn-primary btn-block" data-open="cliente">+ Agregar cliente</button>
           <div id="lista-clientes" class="list"></div>
+        </div>
+
+        <div id="tab-proveedores" class="tab-panel" hidden>
+          <button class="btn btn-primary btn-block" data-open="proveedor">+ Agregar proveedor</button>
+          <div id="lista-proveedores" class="list"></div>
         </div>
       </section>
 
@@ -207,6 +213,7 @@
           <button class="register-btn register-yellow" data-open="gasto">🧾<span>Registrar gasto</span></button>
           <button class="register-btn register-dark" data-open="producto">📦<span>Registrar producto</span></button>
           <button class="register-btn register-blue" data-open="cliente">👥<span>Registrar cliente</span></button>
+          <button class="register-btn register-purple" data-open="proveedor">🚚<span>Registrar proveedor</span></button>
         </div>
       </section>
 
@@ -308,6 +315,86 @@
         </div>
       </section>
 
+      <!-- APRENDA -->
+      <section id="view-aprenda" class="view" hidden>
+        <h2>🎓 Aprenda</h2>
+        <p class="subtitle">Guías rápidas y videos para sacarle más provecho a tu negocio</p>
+
+        <h3 class="section-title">Cómo funciona la app</h3>
+        <details class="learn-item">
+          <summary>💰 Registrar una venta</summary>
+          <p>Ve a <strong>Registrar → Registrar venta</strong>, elige un producto o escribe una descripción libre, indica cantidad y precio, y guarda. El inventario se descuenta solo si eliges un producto.</p>
+        </details>
+        <details class="learn-item">
+          <summary>🧾 Registrar un gasto</summary>
+          <p>Ve a <strong>Registrar → Registrar gasto</strong>, elige una categoría y el valor. Se resta automáticamente de tus ganancias en Finanzas.</p>
+        </details>
+        <details class="learn-item">
+          <summary>📦 Controlar tu inventario</summary>
+          <p>En <strong>Mi negocio → Productos</strong> agrega cada producto con su cantidad y una cantidad mínima. La app te avisa en Inicio cuando un producto está por agotarse.</p>
+        </details>
+        <details class="learn-item">
+          <summary>👥 Clientes y 🚚 proveedores</summary>
+          <p>En <strong>Mi negocio</strong> puedes crear, editar o eliminar tus clientes y proveedores cuando quieras, y llevar el saldo que te deben o les debes.</p>
+        </details>
+        <details class="learn-item">
+          <summary>📊 Revisar tus finanzas y metas</summary>
+          <p>En <strong>Finanzas</strong> ves cuánto entró, cuánto salió y lo que ganaste por día, semana o mes, además de tus productos más vendidos y el avance de tus metas.</p>
+        </details>
+        <details class="learn-item">
+          <summary>🛟 Respaldar tu información</summary>
+          <p>En <strong>Perfil → Respaldo de tu información</strong> puedes descargar una copia de tus datos o restaurarla en otro celular.</p>
+        </details>
+
+        <h3 class="section-title">🛍️ Videos sobre ventas</h3>
+        <div class="video-list">
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=bMd_FM3cAbc">
+            <span class="video-title">La forma más efectiva de aumentar tus ventas (+7 técnicas)</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=xkl4FLBI7Mg">
+            <span class="video-title">3 técnicas de ventas para negocios físicos y digitales</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=cTWrMzvbBKc">
+            <span class="video-title">Curso de ventas para principiantes</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+        </div>
+
+        <h3 class="section-title">📦 Videos sobre inventario</h3>
+        <div class="video-list">
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=kPMJ61ZIeK8">
+            <span class="video-title">Cómo hacer un inventario y llevar el control de entradas, salidas y stock</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=keeR0KYv4Tw">
+            <span class="video-title">Cómo controlar tu inventario en 4 pasos (guía desde cero)</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=xZq4fsw29pc">
+            <span class="video-title">Cómo llevar el inventario de un negocio pequeño (aun en cuaderno)</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+        </div>
+
+        <h3 class="section-title">📊 Videos sobre finanzas</h3>
+        <div class="video-list">
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=kR-rpleu0hM">
+            <span class="video-title">Finanzas básicas para emprendedores</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=HyijIOlC498">
+            <span class="video-title">Finanzas básicas para emprendedores: las bases de un negocio exitoso</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+          <a class="video-link" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=07AKt-ajCoA">
+            <span class="video-title">Consejos básicos de finanzas para emprendedores</span>
+            <span class="video-cta">Ver ▶</span>
+          </a>
+        </div>
+      </section>
+
     </main>
 
     <nav class="bottom-nav">
@@ -316,6 +403,7 @@
       <button class="nav-btn nav-btn-center" data-view="registrar"><span>➕</span></button>
       <button class="nav-btn" data-view="finanzas"><span>📊</span>Finanzas</button>
       <button class="nav-btn" data-view="perfil"><span>👤</span>Perfil</button>
+      <button class="nav-btn" data-view="aprenda"><span>🎓</span>Aprenda</button>
     </nav>
   </div>
 
@@ -403,8 +491,9 @@
     </div>
 
     <div class="modal" id="modal-cliente" hidden>
-      <div class="modal-header"><h3>👥 Registrar cliente</h3><button class="modal-close">✕</button></div>
+      <div class="modal-header"><h3 id="cliente-modal-titulo">👥 Registrar cliente</h3><button class="modal-close">✕</button></div>
       <form id="form-cliente">
+        <input type="hidden" id="c-id">
         <label>Nombre
           <input type="text" id="c-nombre" required>
         </label>
@@ -417,7 +506,30 @@
         <label>Saldo pendiente (si aplica)
           <input type="number" id="c-saldo" min="0" step="0.01" value="0">
         </label>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar cliente</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="cliente-submit-btn">Guardar cliente</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-proveedor" hidden>
+      <div class="modal-header"><h3 id="proveedor-modal-titulo">🚚 Registrar proveedor</h3><button class="modal-close">✕</button></div>
+      <form id="form-proveedor">
+        <input type="hidden" id="pr-id">
+        <label>Nombre
+          <input type="text" id="pr-nombre" required>
+        </label>
+        <label>Qué te provee
+          <input type="text" id="pr-provee" placeholder="Ej: Telas, empaques, materia prima">
+        </label>
+        <label>Teléfono
+          <input type="tel" id="pr-telefono">
+        </label>
+        <label>Correo electrónico
+          <input type="email" id="pr-correo">
+        </label>
+        <label>Saldo pendiente (lo que le debes)
+          <input type="number" id="pr-saldo" min="0" step="0.01" value="0">
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="proveedor-submit-btn">Guardar proveedor</button>
       </form>
     </div>
 
