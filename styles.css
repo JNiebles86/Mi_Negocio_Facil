@@ -223,6 +223,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .cierre-col .cierre-total{font-size:19px;font-weight:800;margin-bottom:10px;word-break:break-word;}
 .cierre-line{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--gris-texto);margin-bottom:4px;}
 
+.badge-estado{display:inline-block;background:#fdecea;color:#c0392b;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle;}
+
 /* goals progress */
 .goal-item{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);}
 .goal-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:8px;}

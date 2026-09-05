@@ -200,6 +200,7 @@ function abrirModalProducto(){
   const selPr = document.getElementById('p-proveedor');
   selPr.innerHTML = '<option value="">— Sin proveedor —</option>' +
     DB.proveedores.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
+  document.getElementById('p-estado').value = 'Activo';
   openModal('producto');
 }
 
@@ -208,15 +209,20 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
   DB.productos.push({
     id: uid(),
     nombre: document.getElementById('p-nombre').value.trim(),
+    sku: document.getElementById('p-sku').value.trim(),
+    categoria: document.getElementById('p-categoria').value.trim(),
+    unidadMedida: document.getElementById('p-unidad').value.trim(),
     cantidad: Number(document.getElementById('p-cantidad').value)||0,
     precioCompra: Number(document.getElementById('p-compra').value)||0,
     precioVenta: Number(document.getElementById('p-venta').value)||0,
     cantidadMinima: Number(document.getElementById('p-minima').value)||0,
-    proveedorId: document.getElementById('p-proveedor').value || null
+    proveedorId: document.getElementById('p-proveedor').value || null,
+    estado: document.getElementById('p-estado').value
   });
   saveDB();
   e.target.reset();
   document.getElementById('p-minima').value = 2;
+  document.getElementById('p-estado').value = 'Activo';
   closeModals();
   toast('Producto guardado ✅');
   renderAll();
@@ -234,16 +240,29 @@ document.getElementById('lista-productos').addEventListener('click', (e)=>{
   if(btn.dataset.accion==='eliminar-producto') eliminarProducto(btn.dataset.id);
 });
 
+document.getElementById('buscar-producto').addEventListener('input', renderProductos);
+
 /* ================= CLIENTES ================= */
+function actualizarLabelCliente(){
+  const esJuridica = document.getElementById('c-tipo-persona').value === 'juridica';
+  document.getElementById('c-nombre-label').textContent = esJuridica ? 'Razón social' : 'Nombres y apellidos';
+  document.getElementById('c-contacto-wrap').hidden = !esJuridica;
+}
+document.getElementById('c-tipo-persona').addEventListener('change', actualizarLabelCliente);
+
 function abrirModalCliente(cliente){
   document.getElementById('c-id').value = cliente?.id || '';
+  document.getElementById('c-tipo-persona').value = cliente?.tipoPersona || 'natural';
   document.getElementById('c-nombres').value = cliente?.nombres || cliente?.nombre || '';
+  document.getElementById('c-contacto').value = cliente?.contacto || '';
   document.getElementById('c-tipo-id').value = cliente?.tipoIdentificacion || 'CC';
   document.getElementById('c-numero-id').value = cliente?.numeroIdentificacion || '';
   document.getElementById('c-direccion').value = cliente?.direccion || '';
   document.getElementById('c-ciudad').value = cliente?.ciudad || '';
   document.getElementById('c-celular').value = cliente?.celular || cliente?.telefono || '';
   document.getElementById('c-correo').value = cliente?.correo || '';
+  document.getElementById('c-estado').value = cliente?.estado || 'Activo';
+  actualizarLabelCliente();
   document.getElementById('cliente-modal-titulo').textContent = cliente ? '👥 Editar cliente' : '👥 Registrar cliente';
   document.getElementById('cliente-submit-btn').textContent = cliente ? 'Guardar cambios' : 'Guardar cliente';
   openModal('cliente');
@@ -262,13 +281,16 @@ document.getElementById('form-cliente').addEventListener('submit', (e)=>{
   e.preventDefault();
   const id = document.getElementById('c-id').value;
   const datos = {
+    tipoPersona: document.getElementById('c-tipo-persona').value,
     nombres: document.getElementById('c-nombres').value.trim(),
+    contacto: document.getElementById('c-contacto').value.trim(),
     tipoIdentificacion: document.getElementById('c-tipo-id').value,
     numeroIdentificacion: document.getElementById('c-numero-id').value.trim(),
     direccion: document.getElementById('c-direccion').value.trim(),
     ciudad: document.getElementById('c-ciudad').value.trim(),
     celular: document.getElementById('c-celular').value.trim(),
-    correo: document.getElementById('c-correo').value.trim()
+    correo: document.getElementById('c-correo').value.trim(),
+    estado: document.getElementById('c-estado').value
   };
   if(id){
     const cliente = DB.clientes.find(c=>c.id===id);
@@ -297,18 +319,22 @@ document.getElementById('buscar-cliente').addEventListener('input', renderClient
 function actualizarLabelProveedor(){
   const esJuridica = document.getElementById('pr-tipo-persona').value === 'juridica';
   document.getElementById('pr-nombre-label').textContent = esJuridica ? 'Nombre de empresa' : 'Nombre y apellido';
+  document.getElementById('pr-contacto-wrap').hidden = !esJuridica;
 }
 document.getElementById('pr-tipo-persona').addEventListener('change', actualizarLabelProveedor);
 
 function abrirModalProveedor(proveedor){
   document.getElementById('pr-id').value = proveedor?.id || '';
   document.getElementById('pr-tipo-persona').value = proveedor?.tipoPersona || 'natural';
-  document.getElementById('pr-numero-id').value = proveedor?.numeroIdentificacion || '';
   document.getElementById('pr-nombre').value = proveedor?.nombre || '';
+  document.getElementById('pr-contacto').value = proveedor?.contacto || '';
+  document.getElementById('pr-tipo-id').value = proveedor?.tipoIdentificacion || 'NIT';
+  document.getElementById('pr-numero-id').value = proveedor?.numeroIdentificacion || '';
   document.getElementById('pr-direccion').value = proveedor?.direccion || '';
   document.getElementById('pr-ciudad').value = proveedor?.ciudad || '';
   document.getElementById('pr-telefono').value = proveedor?.telefono || '';
   document.getElementById('pr-correo').value = proveedor?.correo || '';
+  document.getElementById('pr-estado').value = proveedor?.estado || 'Activo';
   actualizarLabelProveedor();
   document.getElementById('proveedor-modal-titulo').textContent = proveedor ? '🚚 Editar proveedor' : '🚚 Registrar proveedor';
   document.getElementById('proveedor-submit-btn').textContent = proveedor ? 'Guardar cambios' : 'Guardar proveedor';
@@ -329,12 +355,15 @@ document.getElementById('form-proveedor').addEventListener('submit', (e)=>{
   const id = document.getElementById('pr-id').value;
   const datos = {
     tipoPersona: document.getElementById('pr-tipo-persona').value,
-    numeroIdentificacion: document.getElementById('pr-numero-id').value.trim(),
     nombre: document.getElementById('pr-nombre').value.trim(),
+    contacto: document.getElementById('pr-contacto').value.trim(),
+    tipoIdentificacion: document.getElementById('pr-tipo-id').value,
+    numeroIdentificacion: document.getElementById('pr-numero-id').value.trim(),
     direccion: document.getElementById('pr-direccion').value.trim(),
     ciudad: document.getElementById('pr-ciudad').value.trim(),
     telefono: document.getElementById('pr-telefono').value.trim(),
-    correo: document.getElementById('pr-correo').value.trim()
+    correo: document.getElementById('pr-correo').value.trim(),
+    estado: document.getElementById('pr-estado').value
   };
   if(id){
     const proveedor = DB.proveedores.find(p=>p.id===id);
@@ -683,13 +712,27 @@ function renderProductos(){
     cont.innerHTML = '<div class="empty-state">Aún no tienes productos. Agrega el primero 📦</div>';
     return;
   }
-  cont.innerHTML = DB.productos.map(p=>{
+  const filtro = normalizarTexto(document.getElementById('buscar-producto').value.trim());
+  const lista = filtro
+    ? DB.productos.filter(p=>
+        normalizarTexto(p.nombre||'').includes(filtro) ||
+        normalizarTexto(p.sku||'').includes(filtro)
+      )
+    : DB.productos;
+  if(lista.length===0){
+    cont.innerHTML = '<div class="empty-state">No se encontraron productos con esa búsqueda 🔍</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(p=>{
     const bajo = p.cantidad <= p.cantidadMinima;
     const proveedor = DB.proveedores.find(pr=>pr.id===p.proveedorId);
+    const estado = p.estado || 'Activo';
+    const detalles = [p.categoria, p.unidadMedida].filter(Boolean).join(' · ');
     return `<div class="list-item">
       <div class="li-main">
-        <span class="li-title">${escapeHtml(p.nombre)}</span>
+        <span class="li-title">${escapeHtml(p.nombre)}${p.sku ? ` <span class="li-sub">(${escapeHtml(p.sku)})</span>` : ''}${estado!=='Activo' ? `<span class="badge-estado">${escapeHtml(estado)}</span>` : ''}</span>
         <span class="li-sub ${bajo?'stock-low':''}">Disponible: ${p.cantidad}${bajo?' ⚠️ ¡próximo a agotarse!':''}</span>
+        ${detalles ? `<span class="li-sub">${escapeHtml(detalles)}</span>` : ''}
         ${proveedor ? `<span class="li-sub">🚚 ${escapeHtml(proveedor.nombre)}</span>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
@@ -726,10 +769,12 @@ function renderClientes(){
   cont.innerHTML = lista.map(c=>{
     const nombre = c.nombres || c.nombre || '(sin nombre)';
     const saldo = saldoClientePendiente(c.id);
+    const estado = c.estado || 'Activo';
     return `<div class="list-item">
       <div class="li-main">
-        <span class="li-title">${escapeHtml(nombre)}</span>
+        <span class="li-title">${escapeHtml(nombre)}${estado!=='Activo' ? `<span class="badge-estado">${escapeHtml(estado)}</span>` : ''}</span>
         <span class="li-sub">${escapeHtml(c.celular||c.telefono||c.correo||'Sin datos de contacto')}</span>
+        ${c.contacto ? `<span class="li-sub">Contacto: ${escapeHtml(c.contacto)}</span>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         ${saldo>0 ? `<span class="li-value neg">Debe ${money(saldo)}</span>` : `<span class="li-value">Al día</span>`}
@@ -750,10 +795,12 @@ function renderProveedores(){
   }
   cont.innerHTML = DB.proveedores.map(p=>{
     const tipoTxt = p.tipoPersona==='juridica' ? 'Persona jurídica' : 'Persona natural';
+    const estado = p.estado || 'Activo';
     return `<div class="list-item">
       <div class="li-main">
-        <span class="li-title">${escapeHtml(p.nombre)}</span>
+        <span class="li-title">${escapeHtml(p.nombre)}${estado!=='Activo' ? `<span class="badge-estado">${escapeHtml(estado)}</span>` : ''}</span>
         <span class="li-sub">${tipoTxt} · ${escapeHtml(p.telefono||p.correo||'Sin datos')}</span>
+        ${p.contacto ? `<span class="li-sub">Contacto: ${escapeHtml(p.contacto)}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;">
         <button data-accion="editar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>

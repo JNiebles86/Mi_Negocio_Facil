@@ -189,6 +189,7 @@
         </div>
 
         <div id="tab-productos" class="tab-panel">
+          <input type="text" id="buscar-producto" class="search-input" placeholder="🔍 Buscar por nombre o código/SKU...">
           <button class="btn btn-primary btn-block" data-open="producto">+ Agregar producto</button>
           <div id="lista-productos" class="list"></div>
         </div>
@@ -489,6 +490,40 @@
         <label>Nombre del producto
           <input type="text" id="p-nombre" required>
         </label>
+        <label>Código / SKU (opcional)
+          <input type="text" id="p-sku" placeholder="Ej: PROD-001">
+        </label>
+        <label>Categoría
+          <input type="text" id="p-categoria" list="lista-categorias" placeholder="Ej: Alimentos, Ropa, Tecnología...">
+          <datalist id="lista-categorias">
+            <option value="Alimentos">
+            <option value="Bebidas">
+            <option value="Aseo">
+            <option value="Hogar">
+            <option value="Ferretería">
+            <option value="Herramientas">
+            <option value="Repuestos">
+            <option value="Electrónica">
+            <option value="Tecnología">
+            <option value="Ropa y accesorios">
+            <option value="Belleza">
+          </datalist>
+        </label>
+        <label>Unidad de medida
+          <input type="text" id="p-unidad" list="lista-unidades" placeholder="Ej: Unidad, Caja, Kilogramo...">
+          <datalist id="lista-unidades">
+            <option value="Unidad">
+            <option value="Caja">
+            <option value="Paquete">
+            <option value="Bolsa">
+            <option value="Bulto">
+            <option value="Docena">
+            <option value="Par">
+            <option value="Kilogramo">
+            <option value="Gramo">
+            <option value="Litro">
+          </datalist>
+        </label>
         <label>Cantidad disponible
           <input type="number" id="p-cantidad" min="0" value="0" required>
         </label>
@@ -504,6 +539,14 @@
         <label>Proveedor (opcional)
           <select id="p-proveedor"><option value="">— Sin proveedor —</option></select>
         </label>
+        <label>Estado
+          <select id="p-estado">
+            <option value="Activo">Activo</option>
+            <option value="Inactivo">Inactivo</option>
+            <option value="Agotado">Agotado</option>
+            <option value="Descontinuado">Descontinuado</option>
+          </select>
+        </label>
         <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar producto</button>
       </form>
     </div>
@@ -512,15 +555,26 @@
       <div class="modal-header"><h3 id="cliente-modal-titulo">👥 Registrar cliente</h3><button class="modal-close">✕</button></div>
       <form id="form-cliente">
         <input type="hidden" id="c-id">
-        <label>Nombres y apellidos
+        <label>Tipo de cliente
+          <select id="c-tipo-persona">
+            <option value="natural">Persona natural</option>
+            <option value="juridica">Persona jurídica</option>
+          </select>
+        </label>
+        <label><span id="c-nombre-label">Nombres y apellidos</span>
           <input type="text" id="c-nombres" required>
+        </label>
+        <label id="c-contacto-wrap" hidden>Contacto principal
+          <input type="text" id="c-contacto" placeholder="Nombre de la persona de contacto">
         </label>
         <label>Tipo de identificación
           <select id="c-tipo-id">
             <option value="CC">Cédula de ciudadanía (CC)</option>
             <option value="CE">Cédula de extranjería (CE)</option>
             <option value="TI">Tarjeta de identidad (TI)</option>
+            <option value="Pasaporte">Pasaporte</option>
             <option value="NIT">NIT</option>
+            <option value="Otro">Otro</option>
           </select>
         </label>
         <label>Número de identificación
@@ -538,6 +592,12 @@
         <label>Correo electrónico
           <input type="email" id="c-correo">
         </label>
+        <label>Estado
+          <select id="c-estado">
+            <option value="Activo">Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </label>
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="cliente-submit-btn">Guardar cliente</button>
       </form>
     </div>
@@ -552,11 +612,24 @@
             <option value="juridica">Persona jurídica</option>
           </select>
         </label>
-        <label>Número de identificación
-          <input type="text" id="pr-numero-id">
-        </label>
         <label><span id="pr-nombre-label">Nombre y apellido</span>
           <input type="text" id="pr-nombre" required>
+        </label>
+        <label id="pr-contacto-wrap" hidden>Contacto principal
+          <input type="text" id="pr-contacto" placeholder="Nombre de la persona de contacto">
+        </label>
+        <label>Tipo de identificación
+          <select id="pr-tipo-id">
+            <option value="NIT">NIT</option>
+            <option value="CC">Cédula de ciudadanía (CC)</option>
+            <option value="CE">Cédula de extranjería (CE)</option>
+            <option value="TI">Tarjeta de identidad (TI)</option>
+            <option value="Pasaporte">Pasaporte</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </label>
+        <label>Número de identificación
+          <input type="text" id="pr-numero-id">
         </label>
         <label>Dirección
           <input type="text" id="pr-direccion">
@@ -569,6 +642,12 @@
         </label>
         <label>Correo electrónico
           <input type="email" id="pr-correo">
+        </label>
+        <label>Estado
+          <select id="pr-estado">
+            <option value="Activo">Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
         </label>
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="proveedor-submit-btn">Guardar proveedor</button>
       </form>
