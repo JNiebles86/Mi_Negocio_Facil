@@ -1,5 +1,5 @@
 /* Mi Negocio Fácil - service worker: caché para que funcione sin conexión */
-const CACHE_NAME = 'mnf-cache-v3';
+const CACHE_NAME = 'mnf-cache-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -20,7 +20,9 @@ const ASSETS = [
 
 self.addEventListener('install', (event)=>{
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())
+    caches.open(CACHE_NAME).then(cache=>
+      Promise.all(ASSETS.map(url => fetch(url, {cache:'reload'}).then(resp => cache.put(url, resp))))
+    ).then(()=>self.skipWaiting())
   );
 });
 
