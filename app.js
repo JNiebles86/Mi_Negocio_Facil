@@ -198,18 +198,30 @@ document.getElementById('form-onboarding').addEventListener('submit', (e)=>{
 });
 
 /* ================= PRODUCTOS ================= */
-function abrirModalProducto(){
+function abrirModalProducto(producto){
   const selPr = document.getElementById('p-proveedor');
   selPr.innerHTML = '<option value="">— Sin proveedor —</option>' +
     DB.proveedores.map(p=>`<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
-  document.getElementById('p-estado').value = 'Activo';
+  document.getElementById('p-id').value = producto?.id || '';
+  document.getElementById('p-nombre').value = producto?.nombre || '';
+  document.getElementById('p-sku').value = producto?.sku || '';
+  document.getElementById('p-categoria').value = producto?.categoria || '';
+  document.getElementById('p-unidad').value = producto?.unidadMedida || '';
+  document.getElementById('p-cantidad').value = producto?.cantidad ?? 0;
+  document.getElementById('p-compra').value = producto?.precioCompra ?? 0;
+  document.getElementById('p-venta').value = producto?.precioVenta ?? '';
+  document.getElementById('p-minima').value = producto?.cantidadMinima ?? 2;
+  selPr.value = producto?.proveedorId || '';
+  document.getElementById('p-estado').value = producto?.estado || 'Activo';
+  document.getElementById('producto-modal-titulo').textContent = producto ? '📦 Editar producto' : '📦 Registrar producto';
+  document.getElementById('producto-submit-btn').textContent = producto ? 'Guardar cambios' : 'Guardar producto';
   openModal('producto');
 }
 
 document.getElementById('form-producto').addEventListener('submit', (e)=>{
   e.preventDefault();
-  DB.productos.push({
-    id: uid(),
+  const id = document.getElementById('p-id').value;
+  const datos = {
     nombre: document.getElementById('p-nombre').value.trim(),
     sku: document.getElementById('p-sku').value.trim(),
     categoria: document.getElementById('p-categoria').value.trim(),
@@ -220,16 +232,26 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
     cantidadMinima: Number(document.getElementById('p-minima').value)||0,
     proveedorId: document.getElementById('p-proveedor').value || null,
     estado: document.getElementById('p-estado').value
-  });
+  };
+  if(id){
+    const producto = DB.productos.find(p=>p.id===id);
+    if(producto) Object.assign(producto, datos);
+  } else {
+    DB.productos.push({ id: uid(), ...datos });
+  }
   saveDB();
   e.target.reset();
   document.getElementById('p-minima').value = 2;
   document.getElementById('p-estado').value = 'Activo';
   closeModals();
-  toast('Producto guardado ✅');
+  toast(id ? 'Producto actualizado ✅' : 'Producto guardado ✅');
   renderAll();
 });
 
+function editarProducto(id){
+  const producto = DB.productos.find(p=>p.id===id);
+  if(producto) abrirModalProducto(producto);
+}
 function eliminarProducto(id){
   if(!confirm('¿Eliminar este producto?')) return;
   DB.productos = DB.productos.filter(p=>p.id!==id);
@@ -239,7 +261,9 @@ function eliminarProducto(id){
 document.getElementById('lista-productos').addEventListener('click', (e)=>{
   const btn = e.target.closest('[data-accion]');
   if(!btn) return;
-  if(btn.dataset.accion==='eliminar-producto') eliminarProducto(btn.dataset.id);
+  const id = btn.dataset.id;
+  if(btn.dataset.accion==='editar-producto') editarProducto(id);
+  if(btn.dataset.accion==='eliminar-producto') eliminarProducto(id);
 });
 
 document.getElementById('buscar-producto').addEventListener('input', renderProductos);
@@ -946,7 +970,10 @@ function renderProductos(){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <span class="li-value">${money(p.precioVenta)}</span>
-        <button data-accion="eliminar-producto" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+        <div style="display:flex;gap:6px;">
+          <button data-accion="editar-producto" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
+          <button data-accion="eliminar-producto" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+        </div>
       </div>
     </div>`;
   }).join('');

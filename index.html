@@ -608,8 +608,9 @@
     </div>
 
     <div class="modal" id="modal-producto" hidden>
-      <div class="modal-header"><h3>📦 Registrar producto</h3><button class="modal-close">✕</button></div>
+      <div class="modal-header"><h3 id="producto-modal-titulo">📦 Registrar producto</h3><button class="modal-close">✕</button></div>
       <form id="form-producto">
+        <input type="hidden" id="p-id">
         <label>Nombre del producto
           <input type="text" id="p-nombre" required>
         </label>
@@ -670,7 +671,7 @@
             <option value="Descontinuado">Descontinuado</option>
           </select>
         </label>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar producto</button>
+        <button type="submit" id="producto-submit-btn" class="btn btn-primary btn-block btn-lg">Guardar producto</button>
       </form>
     </div>
 
