@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mi Negocio Fácil</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="description" content="Organiza, controla y haz crecer tu negocio.">
+  <meta name="theme-color" content="#0D2B45">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MNF">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ================= ONBOARDING ================= -->
+  <section id="view-onboarding" class="onboarding" hidden>
+    <div class="onboarding-card">
+      <img src="icons/icon-192.png" alt="Mi Negocio Fácil" class="onboarding-logo">
+      <h1>¡Bienvenida a<br>Mi Negocio Fácil!</h1>
+      <p class="onboarding-tag">Organiza, controla y haz crecer tu negocio.</p>
+
+      <form id="form-onboarding">
+        <label>Tu nombre (para saludarte)
+          <input type="text" id="ob-propietario" placeholder="Ej: Andrea">
+        </label>
+        <label>Nombre del negocio
+          <input type="text" id="ob-nombre" placeholder="Ej: Salón Andrea" required>
+        </label>
+        <label>Tipo de negocio
+          <select id="ob-tipo">
+            <option>Tienda / comercio</option>
+            <option>Comida</option>
+            <option>Belleza</option>
+            <option>Ropa y accesorios</option>
+            <option>Tecnología</option>
+            <option>Artesanías</option>
+            <option>Servicios</option>
+            <option>Ventas por redes sociales</option>
+            <option>Otro</option>
+          </select>
+        </label>
+        <label>Ciudad
+          <input type="text" id="ob-ciudad" placeholder="Ej: Barrancabermeja">
+        </label>
+        <label>Moneda
+          <select id="ob-moneda">
+            <option value="COP">Peso colombiano (COP)</option>
+            <option value="USD">Dólar (USD)</option>
+            <option value="MXN">Peso mexicano (MXN)</option>
+            <option value="PEN">Sol peruano (PEN)</option>
+            <option value="CLP">Peso chileno (CLP)</option>
+            <option value="ARS">Peso argentino (ARS)</option>
+            <option value="EUR">Euro (EUR)</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn-primary btn-lg">Crear mi negocio 🚀</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================= APP SHELL ================= -->
+  <div id="app" hidden>
+
+    <header class="topbar">
+      <img src="icons/icon-192.png" class="topbar-logo" alt="">
+      <div class="topbar-text">
+        <strong id="tb-negocio">Mi negocio</strong>
+        <span id="tb-fecha"></span>
+      </div>
+    </header>
+
+    <main id="views">
+
+      <!-- INICIO -->
+      <section id="view-inicio" class="view">
+        <h2 id="saludo">¡Hola! 👋</h2>
+        <p class="subtitle">Así va tu negocio hoy</p>
+
+        <div class="period-tabs" data-target="inicio">
+          <button class="period-tab active" data-period="dia">Hoy</button>
+          <button class="period-tab" data-period="semana">Semana</button>
+          <button class="period-tab" data-period="mes">Mes</button>
+        </div>
+
+        <div class="cards-grid">
+          <div class="card card-green">
+            <span class="card-icon">💰</span>
+            <span class="card-label">Ventas</span>
+            <span class="card-value" id="kpi-ventas">$0</span>
+          </div>
+          <div class="card card-yellow">
+            <span class="card-icon">🧾</span>
+            <span class="card-label">Gastos</span>
+            <span class="card-value" id="kpi-gastos">$0</span>
+          </div>
+          <div class="card card-blue">
+            <span class="card-icon">📈</span>
+            <span class="card-label">Lo que ganaste</span>
+            <span class="card-value" id="kpi-ganancia">$0</span>
+          </div>
+          <div class="card card-dark">
+            <span class="card-icon">📦</span>
+            <span class="card-label">Inventario</span>
+            <span class="card-value" id="kpi-inventario">0</span>
+          </div>
+        </div>
+
+        <h3 class="section-title">Acciones rápidas</h3>
+        <div class="quick-actions">
+          <button class="quick-btn" data-open="venta"><span>➕</span>Registrar venta</button>
+          <button class="quick-btn" data-open="gasto"><span>🧾</span>Registrar gasto</button>
+          <button class="quick-btn" data-open="producto"><span>📦</span>Agregar producto</button>
+          <button class="quick-btn" data-open="cliente"><span>👥</span>Agregar cliente</button>
+        </div>
+
+        <div id="alertas-inicio"></div>
+      </section>
+
+      <!-- MI NEGOCIO -->
+      <section id="view-negocio" class="view" hidden>
+        <h2>Mi negocio</h2>
+        <div class="tabs" id="negocio-tabs">
+          <button class="tab active" data-tab="productos">📦 Productos</button>
+          <button class="tab" data-tab="clientes">👥 Clientes</button>
+        </div>
+
+        <div id="tab-productos" class="tab-panel">
+          <button class="btn btn-primary btn-block" data-open="producto">+ Agregar producto</button>
+          <div id="lista-productos" class="list"></div>
+        </div>
+
+        <div id="tab-clientes" class="tab-panel" hidden>
+          <button class="btn btn-primary btn-block" data-open="cliente">+ Agregar cliente</button>
+          <div id="lista-clientes" class="list"></div>
+        </div>
+      </section>
+
+      <!-- REGISTRAR -->
+      <section id="view-registrar" class="view" hidden>
+        <h2>Registrar</h2>
+        <p class="subtitle">¿Qué quieres registrar?</p>
+        <div class="register-grid">
+          <button class="register-btn register-green" data-open="venta">💰<span>Registrar venta</span></button>
+          <button class="register-btn register-yellow" data-open="gasto">🧾<span>Registrar gasto</span></button>
+          <button class="register-btn register-dark" data-open="producto">📦<span>Registrar producto</span></button>
+          <button class="register-btn register-blue" data-open="cliente">👥<span>Registrar cliente</span></button>
+        </div>
+      </section>
+
+      <!-- FINANZAS -->
+      <section id="view-finanzas" class="view" hidden>
+        <h2>Finanzas</h2>
+        <div class="period-tabs" data-target="finanzas">
+          <button class="period-tab" data-period="dia">Hoy</button>
+          <button class="period-tab" data-period="semana">Semana</button>
+          <button class="period-tab active" data-period="mes">Mes</button>
+        </div>
+
+        <div class="finance-rows">
+          <div class="finance-row">
+            <span>💵 Dinero que entró</span>
+            <strong id="fin-entro">$0</strong>
+          </div>
+          <div class="finance-row">
+            <span>💸 Dinero que salió</span>
+            <strong id="fin-salio">$0</strong>
+          </div>
+          <div class="finance-row finance-total">
+            <span>📈 Lo que ganaste</span>
+            <strong id="fin-gano">$0</strong>
+          </div>
+        </div>
+
+        <h3 class="section-title">Ventas de los últimos 7 días</h3>
+        <div id="chart-semana" class="bar-chart"></div>
+
+        <h3 class="section-title">Productos más vendidos</h3>
+        <div id="top-productos" class="list"></div>
+
+        <h3 class="section-title">🎯 Metas del negocio</h3>
+        <div id="lista-metas" class="list"></div>
+        <button class="btn btn-secondary btn-block" id="btn-nueva-meta">+ Nueva meta</button>
+      </section>
+
+      <!-- PERFIL -->
+      <section id="view-perfil" class="view" hidden>
+        <h2>Perfil</h2>
+
+        <div class="profile-card">
+          <h3>Datos del negocio</h3>
+          <label>Tu nombre (para saludarte)
+            <input type="text" id="pf-propietario">
+          </label>
+          <label>Nombre
+            <input type="text" id="pf-nombre">
+          </label>
+          <label>Tipo de negocio
+            <input type="text" id="pf-tipo">
+          </label>
+          <label>Ciudad
+            <input type="text" id="pf-ciudad">
+          </label>
+          <label>Moneda
+            <select id="pf-moneda">
+              <option value="COP">Peso colombiano (COP)</option>
+              <option value="USD">Dólar (USD)</option>
+              <option value="MXN">Peso mexicano (MXN)</option>
+              <option value="PEN">Sol peruano (PEN)</option>
+              <option value="CLP">Peso chileno (CLP)</option>
+              <option value="ARS">Peso argentino (ARS)</option>
+              <option value="EUR">Euro (EUR)</option>
+            </select>
+          </label>
+          <button class="btn btn-primary btn-block" id="btn-guardar-perfil">Guardar cambios</button>
+        </div>
+
+        <div class="profile-card" id="install-card" hidden>
+          <h3>📲 Instalar en tu celular</h3>
+          <p>Instala Mi Negocio Fácil como una app en tu pantalla de inicio.</p>
+          <button class="btn btn-primary btn-block" id="btn-instalar">Instalar app</button>
+        </div>
+
+        <div class="profile-card">
+          <h3>🛟 Respaldo de tu información</h3>
+          <p>Guarda una copia de tus datos o recupérala en otro celular.</p>
+          <button class="btn btn-secondary btn-block" id="btn-exportar">⬇️ Descargar respaldo</button>
+          <label class="btn btn-secondary btn-block" for="input-importar" style="text-align:center; cursor:pointer;">⬆️ Restaurar respaldo</label>
+          <input type="file" id="input-importar" accept="application/json" hidden>
+        </div>
+
+        <div class="profile-card">
+          <h3>ℹ️ Acerca de</h3>
+          <p><strong>Mi Negocio Fácil</strong><br>Organiza, controla y haz crecer tu negocio.</p>
+        </div>
+      </section>
+
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-view="inicio"><span>🏠</span>Inicio</button>
+      <button class="nav-btn" data-view="negocio"><span>💼</span>Mi negocio</button>
+      <button class="nav-btn nav-btn-center" data-view="registrar"><span>➕</span></button>
+      <button class="nav-btn" data-view="finanzas"><span>📊</span>Finanzas</button>
+      <button class="nav-btn" data-view="perfil"><span>👤</span>Perfil</button>
+    </nav>
+  </div>
+
+  <!-- ================= MODALES ================= -->
+  <div id="modal-backdrop" class="modal-backdrop" hidden>
+
+    <div class="modal" id="modal-venta" hidden>
+      <div class="modal-header"><h3>💰 Registrar venta</h3><button class="modal-close">✕</button></div>
+      <form id="form-venta">
+        <label>Producto o servicio
+          <select id="v-producto"><option value="">— Sin producto (servicio libre) —</option></select>
+        </label>
+        <label>Descripción (si no elegiste producto)
+          <input type="text" id="v-descripcion" placeholder="Ej: Corte de cabello">
+        </label>
+        <label>Cantidad
+          <input type="number" id="v-cantidad" min="1" value="1" required>
+        </label>
+        <label>Precio unitario
+          <input type="number" id="v-precio" min="0" step="0.01" required>
+        </label>
+        <label>Cliente (opcional)
+          <select id="v-cliente"><option value="">— Sin cliente —</option></select>
+        </label>
+        <label>Método de pago
+          <select id="v-pago">
+            <option>Efectivo</option>
+            <option>Transferencia</option>
+            <option>Tarjeta</option>
+            <option>Otro</option>
+          </select>
+        </label>
+        <div class="modal-total">Total: <strong id="v-total">$0</strong></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar venta</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-gasto" hidden>
+      <div class="modal-header"><h3>🧾 Registrar gasto</h3><button class="modal-close">✕</button></div>
+      <form id="form-gasto">
+        <label>Nombre del gasto
+          <input type="text" id="g-nombre" placeholder="Ej: Compra de mercancía" required>
+        </label>
+        <label>Categoría
+          <select id="g-categoria">
+            <option>Mercancía</option>
+            <option>Transporte</option>
+            <option>Arriendo</option>
+            <option>Servicios</option>
+            <option>Publicidad</option>
+            <option>Salarios</option>
+            <option>Otro</option>
+          </select>
+        </label>
+        <label>Valor
+          <input type="number" id="g-valor" min="0" step="0.01" required>
+        </label>
+        <label>Descripción (opcional)
+          <input type="text" id="g-descripcion">
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar gasto</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-producto" hidden>
+      <div class="modal-header"><h3>📦 Registrar producto</h3><button class="modal-close">✕</button></div>
+      <form id="form-producto">
+        <label>Nombre del producto
+          <input type="text" id="p-nombre" required>
+        </label>
+        <label>Cantidad disponible
+          <input type="number" id="p-cantidad" min="0" value="0" required>
+        </label>
+        <label>Precio de compra
+          <input type="number" id="p-compra" min="0" step="0.01" value="0">
+        </label>
+        <label>Precio de venta
+          <input type="number" id="p-venta" min="0" step="0.01" required>
+        </label>
+        <label>Cantidad mínima (para alertas)
+          <input type="number" id="p-minima" min="0" value="2">
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar producto</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-cliente" hidden>
+      <div class="modal-header"><h3>👥 Registrar cliente</h3><button class="modal-close">✕</button></div>
+      <form id="form-cliente">
+        <label>Nombre
+          <input type="text" id="c-nombre" required>
+        </label>
+        <label>Teléfono
+          <input type="tel" id="c-telefono">
+        </label>
+        <label>Correo electrónico
+          <input type="email" id="c-correo">
+        </label>
+        <label>Saldo pendiente (si aplica)
+          <input type="number" id="c-saldo" min="0" step="0.01" value="0">
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar cliente</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-meta" hidden>
+      <div class="modal-header"><h3>🎯 Nueva meta</h3><button class="modal-close">✕</button></div>
+      <form id="form-meta">
+        <label>¿Meta de qué?
+          <select id="m-tipo">
+            <option value="ventas">Ventas</option>
+            <option value="ganancia">Ganancia</option>
+          </select>
+        </label>
+        <label>Periodo
+          <select id="m-periodo">
+            <option value="mes">Este mes</option>
+            <option value="semana">Esta semana</option>
+          </select>
+        </label>
+        <label>Valor objetivo
+          <input type="number" id="m-valor" min="0" step="0.01" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar meta</button>
+      </form>
+    </div>
+
+    <div class="modal modal-detail" id="modal-detalle" hidden>
+      <div class="modal-header"><h3 id="detalle-titulo">Detalle</h3><button class="modal-close">✕</button></div>
+      <div id="detalle-body"></div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
