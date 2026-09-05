@@ -191,6 +191,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .profile-card{background:#fff;border-radius:16px;padding:16px;margin-top:14px;box-shadow:var(--sombra);}
 .profile-card label{margin-bottom:10px;}
 .profile-card:first-of-type{margin-top:8px;}
+.install-steps{margin:12px 0 0;padding-left:20px;font-size:13px;color:var(--gris-texto);}
+.install-steps li{margin-bottom:6px;}
+
+.form-error{background:#fdecea;color:#c0392b;border-radius:8px;padding:8px 12px;font-size:13px;margin:-4px 0 0;}
 
 /* goals progress */
 .goal-item{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);}

@@ -1,33 +1,69 @@
 /* =======================================================
    MI NEGOCIO FÁCIL - lógica de la aplicación
-   Datos guardados en localStorage (un solo negocio, un solo dispositivo).
+   Datos guardados en Firestore, uno por cuenta (un negocio por usuario).
    ======================================================= */
 
-const STORAGE_KEY = 'mnf_data_v1';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
+  signInWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import {
+  initializeFirestore, persistentLocalCache, doc, getDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDlKr1zwsYbA4gH3tGLTE5eAU7pPK_0er0",
+  authDomain: "mi-negocio-facil-53295.firebaseapp.com",
+  projectId: "mi-negocio-facil-53295",
+  storageBucket: "mi-negocio-facil-53295.firebasestorage.app",
+  messagingSenderId: "332849354418",
+  appId: "1:332849354418:web:3d5aee23f789484155dbab",
+  measurementId: "G-ZDDQRWZ429"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = initializeFirestore(firebaseApp, { localCache: persistentLocalCache() });
+
+const STORAGE_KEY = 'mnf_data_v1'; // clave usada por versiones anteriores (localStorage), solo para migrar datos viejos
 
 const CURRENCY_SYMBOLS = {
   COP: '$', USD: 'US$', MXN: 'MX$', PEN: 'S/', CLP: 'CLP$', ARS: 'AR$', EUR: '€'
 };
 
 let DB = null;
+let currentUser = null;
 
-/* ---------- Persistencia ---------- */
-function loadDB(){
+/* ---------- Persistencia (Firestore, por usuario) ---------- */
+function emptyDB(){
+  return { negocio: null, productos: [], clientes: [], ventas: [], gastos: [], metas: [] };
+}
+
+async function loadUserDB(uidUsuario){
+  const ref = doc(db, 'negocios', uidUsuario);
+  const snap = await getDoc(ref);
+  if(snap.exists()) return snap.data();
+
+  // Cuenta nueva: si este navegador tiene datos de una versión anterior (sin cuentas), los migramos.
   const raw = localStorage.getItem(STORAGE_KEY);
   if(raw){
-    try{ return JSON.parse(raw); }catch(e){ /* ignore corrupt data */ }
+    try{
+      const datosViejos = JSON.parse(raw);
+      if(datosViejos && datosViejos.negocio){
+        await setDoc(ref, datosViejos);
+        localStorage.removeItem(STORAGE_KEY);
+        return datosViejos;
+      }
+    }catch(e){ /* datos corruptos, se ignoran */ }
   }
-  return {
-    negocio: null,
-    productos: [],
-    clientes: [],
-    ventas: [],
-    gastos: [],
-    metas: []
-  };
+  return emptyDB();
 }
+
 function saveDB(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+  if(!currentUser) return;
+  setDoc(doc(db, 'negocios', currentUser.uid), DB).catch(()=>{
+    toast('No se pudo sincronizar con la nube. Se reintentará al recuperar conexión ⚠️');
+  });
 }
 function uid(){
   return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -70,6 +106,13 @@ function toast(msg){
   t.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>{ t.hidden = true; }, 2400);
+}
+
+/* ---------- Pantallas de nivel superior (cargando / login / onboarding / app) ---------- */
+function showView(id){
+  ['view-cargando','view-login','view-onboarding','app'].forEach(v=>{
+    document.getElementById(v).hidden = (v !== id);
+  });
 }
 
 /* ---------- Navegación ---------- */
@@ -140,7 +183,8 @@ document.getElementById('form-onboarding').addEventListener('submit', (e)=>{
     creado: new Date().toISOString()
   };
   saveDB();
-  boot();
+  showView('app');
+  switchView(currentView);
 });
 
 /* ================= PRODUCTOS ================= */
@@ -325,7 +369,8 @@ document.getElementById('input-importar').addEventListener('change', (e)=>{
       if(confirm('Esto reemplazará la información actual con la del respaldo. ¿Continuar?')){
         DB = data;
         saveDB();
-        boot();
+        showView('app');
+        switchView(currentView);
         toast('Respaldo restaurado ✅');
       }
     }catch(err){
@@ -334,6 +379,58 @@ document.getElementById('input-importar').addEventListener('change', (e)=>{
   };
   reader.readAsText(file);
   e.target.value = '';
+});
+
+/* ================= CUENTA (login / registro / cerrar sesión) ================= */
+document.querySelectorAll('#login-tabs .tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('#login-tabs .tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('form-signin').hidden = tab.dataset.logintab !== 'signin';
+    document.getElementById('form-signup').hidden = tab.dataset.logintab !== 'signup';
+  });
+});
+
+function authErrorMessage(err){
+  const mensajes = {
+    'auth/invalid-email': 'Ese correo electrónico no es válido.',
+    'auth/user-not-found': 'No existe una cuenta con ese correo.',
+    'auth/wrong-password': 'Contraseña incorrecta.',
+    'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+    'auth/email-already-in-use': 'Ya existe una cuenta con ese correo.',
+    'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.'
+  };
+  return mensajes[err.code] || 'Ocurrió un error. Intenta de nuevo.';
+}
+
+document.getElementById('form-signin').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const errBox = document.getElementById('si-error');
+  errBox.hidden = true;
+  try{
+    await signInWithEmailAndPassword(auth, document.getElementById('si-correo').value.trim(), document.getElementById('si-clave').value);
+  }catch(err){
+    errBox.textContent = authErrorMessage(err);
+    errBox.hidden = false;
+  }
+});
+
+document.getElementById('form-signup').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const errBox = document.getElementById('su-error');
+  errBox.hidden = true;
+  try{
+    await createUserWithEmailAndPassword(auth, document.getElementById('su-correo').value.trim(), document.getElementById('su-clave').value);
+  }catch(err){
+    errBox.textContent = authErrorMessage(err);
+    errBox.hidden = false;
+  }
+});
+
+document.getElementById('btn-cerrar-sesion').addEventListener('click', async ()=>{
+  if(confirm('¿Cerrar sesión?')){
+    await signOut(auth);
+  }
 });
 
 /* ================= RENDER ================= */
@@ -490,6 +587,7 @@ function renderPerfil(){
   document.getElementById('pf-tipo').value = DB.negocio.tipo||'';
   document.getElementById('pf-ciudad').value = DB.negocio.ciudad||'';
   document.getElementById('pf-moneda').value = DB.negocio.moneda||'COP';
+  document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada como ${currentUser.email}` : '';
 }
 
 function renderTopbar(){
@@ -508,6 +606,13 @@ function renderAll(){
 }
 
 /* ================= INSTALAR APP (PWA) ================= */
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isIos(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e)=>{
   e.preventDefault();
@@ -522,6 +627,12 @@ document.getElementById('btn-instalar').addEventListener('click', async ()=>{
   document.getElementById('install-card').hidden = true;
 });
 
+if(isIos() && !isStandalone()){
+  document.getElementById('install-card').hidden = false;
+  document.getElementById('btn-instalar').hidden = true;
+  document.getElementById('install-steps-ios').hidden = false;
+}
+
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
@@ -529,15 +640,20 @@ if('serviceWorker' in navigator){
 }
 
 /* ================= BOOT ================= */
-function boot(){
-  DB = loadDB();
-  if(DB.negocio){
-    document.getElementById('view-onboarding').hidden = true;
-    document.getElementById('app').hidden = false;
-    switchView(currentView);
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    currentUser = user;
+    showView('view-cargando');
+    DB = await loadUserDB(user.uid);
+    if(DB.negocio){
+      showView('app');
+      switchView(currentView);
+    } else {
+      showView('view-onboarding');
+    }
   } else {
-    document.getElementById('view-onboarding').hidden = false;
-    document.getElementById('app').hidden = true;
+    currentUser = null;
+    DB = null;
+    showView('view-login');
   }
-}
-boot();
+});

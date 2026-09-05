@@ -1,5 +1,5 @@
 /* Mi Negocio Fácil - service worker: caché para que funcione sin conexión */
-const CACHE_NAME = 'mnf-cache-v1';
+const CACHE_NAME = 'mnf-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -34,6 +34,7 @@ self.addEventListener('activate', (event)=>{
 
 self.addEventListener('fetch', (event)=>{
   if(event.request.method !== 'GET') return;
+  if(new URL(event.request.url).origin !== self.location.origin) return; // deja pasar Firebase y otros orígenes sin cachear
   event.respondWith(
     caches.match(event.request).then(cached=>{
       if(cached) return cached;

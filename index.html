@@ -20,6 +20,50 @@
 </head>
 <body>
 
+  <!-- ================= CARGANDO ================= -->
+  <section id="view-cargando" class="onboarding">
+    <div class="onboarding-card" style="text-align:center;">
+      <img src="icons/icon-192.png" alt="Mi Negocio Fácil" class="onboarding-logo">
+      <p>Cargando…</p>
+    </div>
+  </section>
+
+  <!-- ================= LOGIN ================= -->
+  <section id="view-login" class="onboarding" hidden>
+    <div class="onboarding-card">
+      <img src="icons/icon-192.png" alt="Mi Negocio Fácil" class="onboarding-logo">
+      <h1>Mi Negocio Fácil</h1>
+      <p class="onboarding-tag">Inicia sesión para acceder a tu negocio</p>
+
+      <div class="tabs" id="login-tabs">
+        <button type="button" class="tab active" data-logintab="signin">Iniciar sesión</button>
+        <button type="button" class="tab" data-logintab="signup">Crear cuenta</button>
+      </div>
+
+      <form id="form-signin">
+        <label>Correo electrónico
+          <input type="email" id="si-correo" required>
+        </label>
+        <label>Contraseña
+          <input type="password" id="si-clave" required minlength="6">
+        </label>
+        <p class="form-error" id="si-error" hidden></p>
+        <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
+      </form>
+
+      <form id="form-signup" hidden>
+        <label>Correo electrónico
+          <input type="email" id="su-correo" required>
+        </label>
+        <label>Contraseña (mínimo 6 caracteres)
+          <input type="password" id="su-clave" required minlength="6">
+        </label>
+        <p class="form-error" id="su-error" hidden></p>
+        <button type="submit" class="btn btn-primary btn-lg">Crear cuenta</button>
+      </form>
+    </div>
+  </section>
+
   <!-- ================= ONBOARDING ================= -->
   <section id="view-onboarding" class="onboarding" hidden>
     <div class="onboarding-card">
@@ -226,6 +270,11 @@
           <h3>📲 Instalar en tu celular</h3>
           <p>Instala Mi Negocio Fácil como una app en tu pantalla de inicio.</p>
           <button class="btn btn-primary btn-block" id="btn-instalar">Instalar app</button>
+          <ol class="install-steps" id="install-steps-ios" hidden>
+            <li>Toca el botón <strong>Compartir</strong> <span aria-hidden="true">⬆️</span> en la barra de Safari</li>
+            <li>Elige <strong>"Agregar a pantalla de inicio"</strong></li>
+            <li>Toca <strong>"Agregar"</strong> arriba a la derecha</li>
+          </ol>
         </div>
 
         <div class="profile-card">
@@ -239,6 +288,12 @@
         <div class="profile-card">
           <h3>ℹ️ Acerca de</h3>
           <p><strong>Mi Negocio Fácil</strong><br>Organiza, controla y haz crecer tu negocio.</p>
+        </div>
+
+        <div class="profile-card">
+          <h3>🔒 Sesión</h3>
+          <p id="pf-correo-actual" style="color:var(--gris-texto);font-size:13px;"></p>
+          <button class="btn btn-secondary btn-block" id="btn-cerrar-sesion">Cerrar sesión</button>
         </div>
       </section>
 
@@ -386,6 +441,6 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
