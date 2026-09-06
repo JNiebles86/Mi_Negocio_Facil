@@ -573,12 +573,15 @@
         <label>Descripción (si no elegiste producto)
           <input type="text" id="v-descripcion" placeholder="Ej: Corte de cabello">
         </label>
-        <div class="item-form-row">
+        <div class="item-form-row item-form-row-3">
           <label>Cantidad
             <input type="number" id="v-cantidad" min="1" value="1">
           </label>
           <label>Precio unitario
             <input type="number" id="v-precio" min="0" step="0.01">
+          </label>
+          <label>IVA (%)
+            <input type="number" id="v-item-iva" min="0" max="100" step="0.01" value="0">
           </label>
         </div>
         <button type="button" class="btn btn-secondary btn-block" id="v-agregar-item">+ Agregar a la factura</button>
@@ -590,14 +593,9 @@
       <div id="v-carrito-lista" class="list" style="margin:0 0 14px;"></div>
 
       <form id="form-venta">
-        <div class="item-form-row">
-          <label>Descuento (%)
-            <input type="number" id="v-descuento" min="0" max="100" step="0.01" value="0">
-          </label>
-          <label>IVA (%)
-            <input type="number" id="v-iva" min="0" max="100" step="0.01" value="0">
-          </label>
-        </div>
+        <label>Descuento (%)
+          <input type="number" id="v-descuento" min="0" max="100" step="0.01" value="0">
+        </label>
         <div class="cierre-line"><span>Subtotal</span><span id="v-subtotal">$0</span></div>
         <div class="cierre-line"><span>Descuento</span><span id="v-desc-total">$0</span></div>
         <div class="cierre-line"><span>IVA</span><span id="v-iva-total">$0</span></div>
@@ -632,12 +630,15 @@
         <label>Producto
           <select id="co-producto"><option value="">— Elige un producto —</option></select>
         </label>
-        <div class="item-form-row">
+        <div class="item-form-row item-form-row-3">
           <label>Cantidad comprada
             <input type="number" id="co-cantidad" min="1" value="1">
           </label>
           <label>Costo unitario
             <input type="number" id="co-costo" min="0" step="0.01">
+          </label>
+          <label>IVA (%)
+            <input type="number" id="co-item-iva" min="0" max="100" step="0.01" value="0">
           </label>
         </div>
         <button type="button" class="btn btn-secondary btn-block" id="co-agregar-item">+ Agregar a la compra</button>
@@ -650,6 +651,8 @@
 
       <form id="form-compra">
         <input type="hidden" id="co-id">
+        <div class="cierre-line"><span>Subtotal</span><span id="co-subtotal">$0</span></div>
+        <div class="cierre-line"><span>IVA</span><span id="co-iva-total">$0</span></div>
         <div class="modal-total">Total: <strong id="co-total">$0</strong></div>
         <button type="submit" id="compra-submit-btn" class="btn btn-primary btn-block btn-lg">Guardar compra</button>
       </form>
@@ -754,6 +757,14 @@
         </label>
         <label>Precio de venta
           <input type="number" id="p-venta" min="0" step="0.01" required>
+        </label>
+        <label>IVA (%)
+          <input type="number" id="p-iva" list="lista-iva" min="0" max="100" step="0.01" value="19">
+          <datalist id="lista-iva">
+            <option value="0">
+            <option value="5">
+            <option value="19">
+          </datalist>
         </label>
         <label>Cantidad mínima (para alertas)
           <input type="number" id="p-minima" min="0" value="2">

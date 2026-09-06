@@ -251,6 +251,7 @@ function abrirModalProducto(producto){
   document.getElementById('p-cantidad').value = producto?.cantidad ?? 0;
   document.getElementById('p-compra').value = producto?.precioCompra ?? 0;
   document.getElementById('p-venta').value = producto?.precioVenta ?? '';
+  document.getElementById('p-iva').value = producto?.ivaPct ?? 19;
   document.getElementById('p-minima').value = producto?.cantidadMinima ?? 2;
   selPr.value = producto?.proveedorId || '';
   document.getElementById('p-estado').value = producto?.estado || 'Activo';
@@ -270,6 +271,7 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
     cantidad: Number(document.getElementById('p-cantidad').value)||0,
     precioCompra: Number(document.getElementById('p-compra').value)||0,
     precioVenta: Number(document.getElementById('p-venta').value)||0,
+    ivaPct: Number(document.getElementById('p-iva').value)||0,
     cantidadMinima: Number(document.getElementById('p-minima').value)||0,
     proveedorId: document.getElementById('p-proveedor').value || null,
     estado: document.getElementById('p-estado').value
@@ -284,6 +286,7 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
   }
   saveDB();
   e.target.reset();
+  document.getElementById('p-iva').value = 19;
   document.getElementById('p-minima').value = 2;
   document.getElementById('p-estado').value = 'Activo';
   closeModals();
@@ -481,11 +484,11 @@ function prepararModalVenta(){
   document.getElementById('v-descripcion').value = '';
   document.getElementById('v-cantidad').value = 1;
   document.getElementById('v-precio').value = '';
+  document.getElementById('v-item-iva').value = 0;
   document.getElementById('v-cliente').value = '';
   document.getElementById('v-tipo').value = 'contado';
   document.getElementById('v-plazo').value = 30;
   document.getElementById('v-descuento').value = 0;
-  document.getElementById('v-iva').value = 0;
   actualizarTipoVenta();
   renderCarritoVenta();
 }
@@ -501,18 +504,17 @@ document.getElementById('v-producto').addEventListener('change', (e)=>{
   if(prod){
     document.getElementById('v-precio').value = prod.precioVenta;
     document.getElementById('v-descripcion').value = prod.nombre;
+    document.getElementById('v-item-iva').value = prod.ivaPct ?? 0;
   }
 });
 
 function totalesCarritoVenta(){
-  const subtotal = carritoVenta.reduce((a,it)=>a+it.total,0);
+  const subtotal = carritoVenta.reduce((a,it)=>a+it.subtotal,0);
+  const ivaTotal = carritoVenta.reduce((a,it)=>a+it.ivaValor,0);
   const descPct = Number(document.getElementById('v-descuento').value)||0;
-  const ivaPct = Number(document.getElementById('v-iva').value)||0;
   const descuentoTotal = subtotal * descPct/100;
-  const base = subtotal - descuentoTotal;
-  const ivaTotal = base * ivaPct/100;
-  const total = base + ivaTotal;
-  return { subtotal, descPct, ivaPct, descuentoTotal, ivaTotal, total };
+  const total = subtotal - descuentoTotal + ivaTotal;
+  return { subtotal, descPct, descuentoTotal, ivaTotal, total };
 }
 
 function renderCarritoVenta(){
@@ -541,28 +543,34 @@ document.getElementById('v-carrito-lista').addEventListener('click', (e)=>{
   renderCarritoVenta();
 });
 document.getElementById('v-descuento').addEventListener('input', renderCarritoVenta);
-document.getElementById('v-iva').addEventListener('input', renderCarritoVenta);
 
 document.getElementById('v-agregar-item').addEventListener('click', ()=>{
   const productoId = document.getElementById('v-producto').value;
   const producto = DB.productos.find(p=>p.id===productoId);
   const cantidad = Number(document.getElementById('v-cantidad').value)||0;
   const precio = Number(document.getElementById('v-precio').value)||0;
+  const ivaPct = Number(document.getElementById('v-item-iva').value)||0;
   const descripcion = document.getElementById('v-descripcion').value.trim() || (producto?producto.nombre:'');
   if(!descripcion){ toast('Elige un producto o escribe una descripción ⚠️'); return; }
   if(cantidad<=0){ toast('La cantidad debe ser mayor a 0 ⚠️'); return; }
+  const subtotal = cantidad*precio;
+  const ivaValor = subtotal*ivaPct/100;
   carritoVenta.push({
     productoId: productoId || null,
     codigo: producto?.sku || '',
     descripcion,
     cantidad,
     precioUnitario: precio,
-    total: cantidad*precio
+    ivaPct,
+    subtotal,
+    ivaValor,
+    total: subtotal + ivaValor
   });
   document.getElementById('v-producto').value = '';
   document.getElementById('v-descripcion').value = '';
   document.getElementById('v-cantidad').value = 1;
   document.getElementById('v-precio').value = '';
+  document.getElementById('v-item-iva').value = 0;
   renderCarritoVenta();
 });
 
@@ -609,7 +617,6 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
     fechaVencimiento,
     items: carritoVenta.slice(),
     descuentoPct: t.descPct,
-    ivaPct: t.ivaPct,
     subtotal: t.subtotal,
     descuentoTotal: t.descuentoTotal,
     ivaTotal: t.ivaTotal,
@@ -638,6 +645,7 @@ function abrirModalCompra(compra){
   document.getElementById('co-id').value = compra?.id || '';
   document.getElementById('co-cantidad').value = 1;
   document.getElementById('co-costo').value = '';
+  document.getElementById('co-item-iva').value = 0;
   document.getElementById('co-proveedor').value = compra?.proveedorId || '';
   document.getElementById('co-numero-factura').value = compra?.numeroFacturaProveedor || '';
   document.getElementById('co-tipo').value = compra?.tipoCompra || 'contado';
@@ -668,7 +676,11 @@ function renderCarritoCompra(){
         <span class="li-value">${money(it.total)}</span>
         <button type="button" class="li-quitar" data-idx="${idx}">✕</button>
       </div>`).join('');
-  document.getElementById('co-total').textContent = money(carritoCompra.reduce((a,it)=>a+it.total,0));
+  const subtotal = carritoCompra.reduce((a,it)=>a+(it.subtotal ?? it.total),0);
+  const ivaTotal = carritoCompra.reduce((a,it)=>a+(it.ivaValor||0),0);
+  document.getElementById('co-subtotal').textContent = money(subtotal);
+  document.getElementById('co-iva-total').textContent = money(ivaTotal);
+  document.getElementById('co-total').textContent = money(subtotal + ivaTotal);
 }
 document.getElementById('co-carrito-lista').addEventListener('click', (e)=>{
   const btn = e.target.closest('.li-quitar');
@@ -677,23 +689,35 @@ document.getElementById('co-carrito-lista').addEventListener('click', (e)=>{
   renderCarritoCompra();
 });
 
+document.getElementById('co-producto').addEventListener('change', (e)=>{
+  const prod = DB.productos.find(p=>p.id===e.target.value);
+  document.getElementById('co-item-iva').value = prod ? (prod.ivaPct ?? 0) : 0;
+});
+
 document.getElementById('co-agregar-item').addEventListener('click', ()=>{
   const productoId = document.getElementById('co-producto').value;
   const producto = DB.productos.find(p=>p.id===productoId);
   const cantidad = Number(document.getElementById('co-cantidad').value)||0;
   const costo = Number(document.getElementById('co-costo').value)||0;
+  const ivaPct = Number(document.getElementById('co-item-iva').value)||0;
   if(!producto){ toast('Elige un producto ⚠️'); return; }
   if(cantidad<=0){ toast('La cantidad debe ser mayor a 0 ⚠️'); return; }
+  const subtotal = cantidad*costo;
+  const ivaValor = subtotal*ivaPct/100;
   carritoCompra.push({
     productoId,
     descripcion: producto.nombre,
     cantidad,
     costoUnitario: costo,
-    total: cantidad*costo
+    ivaPct,
+    subtotal,
+    ivaValor,
+    total: subtotal + ivaValor
   });
   document.getElementById('co-producto').value = '';
   document.getElementById('co-cantidad').value = 1;
   document.getElementById('co-costo').value = '';
+  document.getElementById('co-item-iva').value = 0;
   renderCarritoCompra();
 });
 
@@ -726,13 +750,17 @@ document.getElementById('form-compra').addEventListener('submit', (e)=>{
     if(compra.tipoCompra==='contado') compra.pagada = true;
     compra.fechaVencimiento = fechaVencimiento;
     compra.items = carritoCompra.slice();
-    compra.total = carritoCompra.reduce((a,it)=>a+it.total,0);
+    compra.subtotal = carritoCompra.reduce((a,it)=>a+(it.subtotal ?? it.total),0);
+    compra.ivaTotal = carritoCompra.reduce((a,it)=>a+(it.ivaValor||0),0);
+    compra.total = compra.subtotal + compra.ivaTotal;
     registrarCambio('Compra', 'Editar', `Editó la compra a "${DB.proveedores.find(p=>p.id===proveedorId)?.nombre||''}" por ${money(compra.total)}`);
   } else {
     carritoCompra.forEach(it=>{
       const producto = DB.productos.find(p=>p.id===it.productoId);
       if(producto) producto.cantidad = producto.cantidad + it.cantidad;
     });
+    const subtotal = carritoCompra.reduce((a,it)=>a+(it.subtotal ?? it.total),0);
+    const ivaTotal = carritoCompra.reduce((a,it)=>a+(it.ivaValor||0),0);
     const compra = {
       id: uid(),
       fecha: new Date().toISOString(),
@@ -742,7 +770,9 @@ document.getElementById('form-compra').addEventListener('submit', (e)=>{
       pagada: tipoCompraForm==='contado',
       fechaVencimiento,
       items: carritoCompra.slice(),
-      total: carritoCompra.reduce((a,it)=>a+it.total,0)
+      subtotal,
+      ivaTotal,
+      total: subtotal + ivaTotal
     };
     DB.compras.push(compra);
     registrarCambio('Compra', 'Crear', `Registró una compra a "${DB.proveedores.find(p=>p.id===proveedorId)?.nombre||''}" por ${money(compra.total)}`);
@@ -780,8 +810,11 @@ function mostrarCompra(id){
       <td>${escapeHtml(it.descripcion)}</td>
       <td>${it.cantidad}</td>
       <td>${money(it.costoUnitario)}</td>
+      <td>${it.ivaPct||0}%</td>
       <td>${money(it.total)}</td>
     </tr>`).join('');
+  const subtotal = compra.subtotal ?? (compra.items||[]).reduce((a,it)=>a+(it.subtotal ?? it.total),0);
+  const ivaTotal = compra.ivaTotal ?? (compra.items||[]).reduce((a,it)=>a+(it.ivaValor||0),0);
   const html = `
     <div class="factura-doc">
       <div style="font-size:13px;margin-bottom:10px;">
@@ -793,10 +826,12 @@ function mostrarCompra(id){
         ${compra.fechaVencimiento ? `<br><strong>Vence:</strong> ${fmtDate(compra.fechaVencimiento)}` : ''}
       </div>
       <table>
-        <thead><tr><th>Producto</th><th>Cant.</th><th>Vr. unitario</th><th>Vr. total</th></tr></thead>
+        <thead><tr><th>Producto</th><th>Cant.</th><th>Vr. unitario</th><th>IVA %</th><th>Vr. total</th></tr></thead>
         <tbody>${filas}</tbody>
       </table>
-      <div class="modal-total" style="margin-top:10px;">Total: <strong>${money(compra.total)}</strong></div>
+      <div class="cierre-line" style="margin-top:10px;"><span>Subtotal</span><span>${money(subtotal)}</span></div>
+      <div class="cierre-line"><span>IVA</span><span>${money(ivaTotal)}</span></div>
+      <div class="modal-total"><span>Total: </span><strong>${money(compra.total)}</strong></div>
     </div>
   `;
   mostrarDetalle('Detalle de compra', html, 'compra-detalle-panel');
@@ -1319,7 +1354,7 @@ function renderProductos(){
     const bajo = p.cantidad <= p.cantidadMinima;
     const proveedor = DB.proveedores.find(pr=>pr.id===p.proveedorId);
     const estado = p.estado || 'Activo';
-    const detalles = [p.categoria, p.unidadMedida].filter(Boolean).join(' · ');
+    const detalles = [p.categoria, p.unidadMedida, `IVA ${p.ivaPct ?? 0}%`].filter(Boolean).join(' · ');
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${escapeHtml(p.nombre)}${p.sku ? ` <span class="li-sub">(${escapeHtml(p.sku)})</span>` : ''}${estado!=='Activo' ? `<span class="badge-estado">${escapeHtml(estado)}</span>` : ''}</span>
@@ -1648,7 +1683,7 @@ function mostrarFactura(ventaId){
       <td>${money(it.precioUnitario)}</td>
       <td>${it.cantidad}</td>
       <td>${venta.descuentoPct||0}%</td>
-      <td>${venta.ivaPct||0}%</td>
+      <td>${it.ivaPct||0}%</td>
       <td>${money(it.total)}</td>
     </tr>`).join('');
 
