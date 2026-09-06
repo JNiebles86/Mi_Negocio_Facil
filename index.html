@@ -316,6 +316,7 @@
       <!-- FINANZAS -->
       <section id="view-finanzas" class="view" hidden>
         <h2>Finanzas</h2>
+        <button class="btn btn-primary btn-block" id="btn-ver-dashboard">📊 Ver dashboard financiero</button>
         <div class="period-tabs" data-target="finanzas">
           <button class="period-tab" data-period="dia">Hoy</button>
           <button class="period-tab" data-period="semana">Semana</button>
@@ -514,6 +515,44 @@
           <p id="pf-correo-actual" style="color:var(--gris-texto);font-size:13px;"></p>
           <button class="btn btn-secondary btn-block" id="btn-cerrar-sesion">Cerrar sesión</button>
         </div>
+      </section>
+
+      <!-- DASHBOARD FINANCIERO -->
+      <section id="view-dashboard" class="view" hidden>
+        <button class="btn btn-secondary" id="btn-volver-finanzas" style="align-self:flex-start;padding:6px 14px;font-size:12px;">← Volver a Finanzas</button>
+        <h2>📊 Dashboard financiero</h2>
+        <p class="subtitle">Todos los movimientos financieros de tu negocio, filtrables por fecha</p>
+
+        <div class="date-filter">
+          <label>Desde <input type="date" id="dashboard-desde"></label>
+          <label>Hasta <input type="date" id="dashboard-hasta"></label>
+          <button type="button" class="btn btn-secondary" id="dashboard-limpiar">Limpiar</button>
+        </div>
+        <p style="font-size:11px;color:var(--gris-texto);">Sin filtro se muestran los últimos 30 días.</p>
+
+        <div class="period-tabs" data-target="dashboardGran">
+          <button class="period-tab active" data-period="dia">Por día</button>
+          <button class="period-tab" data-period="semana">Por semana</button>
+          <button class="period-tab" data-period="mes">Por mes</button>
+        </div>
+
+        <div class="cards-grid" id="dash-kpis"></div>
+
+        <h3 class="section-title">📈 Ventas en el tiempo</h3>
+        <div id="dash-chart" class="bar-chart"></div>
+
+        <h3 class="section-title">🧮 Matriz de movimientos</h3>
+        <div id="dash-matriz"></div>
+
+        <h3 class="section-title">🏆 Productos más vendidos</h3>
+        <div id="dash-top-productos"></div>
+
+        <h3 class="section-title">📦 Categorías más vendidas</h3>
+        <div id="dash-top-categorias"></div>
+
+        <h3 class="section-title">🗓️ Primera quincena vs. segunda quincena</h3>
+        <p style="font-size:12px;">Qué categorías se venden más del 1 al 15 de cada mes, comparado con del 16 al final, dentro del rango seleccionado.</p>
+        <div id="dash-quincenas"></div>
       </section>
 
       <!-- CAMBIOS EN EL SISTEMA -->

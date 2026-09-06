@@ -172,7 +172,7 @@ function showView(id){
 
 /* ---------- Navegación ---------- */
 let currentView = 'inicio';
-let periods = { inicio:'dia', finanzas:'mes' };
+let periods = { inicio:'dia', finanzas:'mes', dashboardGran:'dia' };
 
 function switchView(name){
   currentView = name;
@@ -224,6 +224,7 @@ wireDateFilter('porcobrar', renderDeudores);
 wireDateFilter('porpagar', renderPorPagar);
 wireDateFilter('resumen', renderResumenCuentas);
 wireDateFilter('historial', renderHistorialMensual);
+wireDateFilter('dashboard', renderDashboard);
 
 /* ---------- Búsqueda de producto por código de barras / SKU / nombre (al facturar) ---------- */
 function buscarProductoPorCodigo(query){
@@ -1909,6 +1910,154 @@ function renderHistorialMensual(){
   </table></div>`;
 }
 
+/* ================= DASHBOARD FINANCIERO (dinámico) ================= */
+function claveBucket(fechaISO, gran){
+  if(gran==='semana') return startOfWeek(new Date(fechaISO)).toISOString().slice(0,10);
+  if(gran==='mes') return mesKey(fechaISO);
+  return new Date(fechaISO).toISOString().slice(0,10);
+}
+function etiquetaBucket(key, gran){
+  if(gran==='semana'){
+    const ini = new Date(key+'T00:00:00');
+    const fin = new Date(ini); fin.setDate(fin.getDate()+6);
+    return `${fmtDate(ini)} — ${fmtDate(fin)}`;
+  }
+  if(gran==='mes') return mesLabel(key);
+  return fmtDate(key+'T00:00:00');
+}
+function etiquetaCortaBucket(key, gran){
+  if(gran==='mes'){
+    const d = new Date(key+'-01T00:00:00');
+    return d.toLocaleDateString('es-CO',{month:'short'});
+  }
+  const d = new Date(key+'T00:00:00');
+  return String(d.getDate());
+}
+
+function renderDashboard(){
+  const contKpis = document.getElementById('dash-kpis');
+  if(!contKpis) return;
+  const gran = periods.dashboardGran || 'dia';
+
+  let desde, hasta;
+  const f = dateFilters['dashboard'];
+  if(f && (f.desde || f.hasta)){
+    desde = f.desde ? new Date(f.desde+'T00:00:00') : null;
+    hasta = f.hasta ? new Date(f.hasta+'T23:59:59') : null;
+  } else {
+    hasta = new Date();
+    desde = new Date(); desde.setDate(desde.getDate()-29); desde.setHours(0,0,0,0);
+  }
+  const enRango = (fechaISO)=>{
+    const d = new Date(fechaISO);
+    if(desde && d<desde) return false;
+    if(hasta && d>hasta) return false;
+    return true;
+  };
+
+  const ventas = DB.ventas.filter(v=>!v.anulada && enRango(v.fecha));
+  const gastos = DB.gastos.filter(g=> enRango(g.fecha));
+  const compras = DB.compras.filter(c=> enRango(c.fecha));
+
+  const totalVentas = ventas.reduce((a,v)=>a+v.total,0);
+  const totalGastos = gastos.reduce((a,g)=>a+g.valor,0);
+  const totalCompras = compras.reduce((a,c)=>a+c.total,0);
+  const ganancia = totalVentas - totalGastos;
+  const ticketProm = ventas.length ? totalVentas/ventas.length : 0;
+
+  contKpis.innerHTML = `
+    <div class="card card-green"><span class="card-icon">💰</span><span class="card-label">Ventas</span><span class="card-value">${money(totalVentas)}</span></div>
+    <div class="card card-yellow"><span class="card-icon">🧾</span><span class="card-label">Gastos</span><span class="card-value">${money(totalGastos)}</span></div>
+    <div class="card card-blue"><span class="card-icon">📈</span><span class="card-label">Ganancia</span><span class="card-value">${money(ganancia)}</span></div>
+    <div class="card card-dark"><span class="card-icon">🧾</span><span class="card-label">Compras</span><span class="card-value">${money(totalCompras)}</span></div>
+    <div class="card card-green"><span class="card-icon">🧮</span><span class="card-label"># Facturas</span><span class="card-value">${ventas.length}</span></div>
+    <div class="card card-blue"><span class="card-icon">🎟️</span><span class="card-label">Ticket promedio</span><span class="card-value">${money(ticketProm)}</span></div>
+  `;
+
+  const buckets = {};
+  const registrarBucket = (fechaISO, campo, valor)=>{
+    const key = claveBucket(fechaISO, gran);
+    if(!buckets[key]) buckets[key] = { ventas:0, gastos:0, compras:0 };
+    buckets[key][campo] += valor;
+  };
+  ventas.forEach(v=> registrarBucket(v.fecha,'ventas', v.total));
+  gastos.forEach(g=> registrarBucket(g.fecha,'gastos', g.valor));
+  compras.forEach(c=> registrarBucket(c.fecha,'compras', c.total));
+  const keys = Object.keys(buckets).sort();
+
+  const chart = document.getElementById('dash-chart');
+  if(keys.length===0){
+    chart.innerHTML = '<div class="empty-state">Sin movimientos en el rango seleccionado</div>';
+  } else {
+    const max = Math.max(...keys.map(k=>buckets[k].ventas), 1);
+    chart.innerHTML = keys.map(k=>{
+      const h = Math.max(4, Math.round((buckets[k].ventas/max)*100));
+      return `<div class="bar-col"><div class="bar" style="height:${h}%" title="${money(buckets[k].ventas)}"></div><span>${escapeHtml(etiquetaCortaBucket(k,gran))}</span></div>`;
+    }).join('');
+  }
+
+  const matriz = document.getElementById('dash-matriz');
+  matriz.innerHTML = keys.length ? `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Periodo</th><th class="num">Ventas</th><th class="num">Gastos</th><th class="num">Compras</th><th class="num">Ganancia</th></tr></thead>
+      <tbody>${keys.map(k=>{
+        const b = buckets[k];
+        return `<tr><td>${escapeHtml(etiquetaBucket(k,gran))}</td><td class="num">${money(b.ventas)}</td><td class="num">${money(b.gastos)}</td><td class="num">${money(b.compras)}</td><td class="num">${money(b.ventas-b.gastos)}</td></tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr class="total-row"><td>TOTAL</td><td class="num">${money(totalVentas)}</td><td class="num">${money(totalGastos)}</td><td class="num">${money(totalCompras)}</td><td class="num">${money(ganancia)}</td></tr></tfoot>
+    </table></div>` : '<div class="empty-state">Sin movimientos en el rango seleccionado</div>';
+
+  const porProducto = {};
+  const porCategoria = {};
+  ventas.forEach(v=>{
+    (v.items||[]).forEach(it=>{
+      const nombre = it.descripcion || 'Venta libre';
+      if(!porProducto[nombre]) porProducto[nombre] = { cantidad:0, total:0 };
+      porProducto[nombre].cantidad += it.cantidad;
+      porProducto[nombre].total += it.total;
+
+      const producto = it.productoId ? DB.productos.find(p=>p.id===it.productoId) : null;
+      const categoria = producto?.categoria || 'Sin categoría';
+      if(!porCategoria[categoria]) porCategoria[categoria] = { cantidad:0, total:0 };
+      porCategoria[categoria].cantidad += it.cantidad;
+      porCategoria[categoria].total += it.total;
+    });
+  });
+  const topProductos = Object.entries(porProducto).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
+  const topCategorias = Object.entries(porCategoria).sort((a,b)=>b[1].total-a[1].total);
+
+  document.getElementById('dash-top-productos').innerHTML = topProductos.length ? `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Total vendido</th></tr></thead>
+      <tbody>${topProductos.map(([n,d])=>`<tr><td>${escapeHtml(n)}</td><td class="num">${d.cantidad}</td><td class="num">${money(d.total)}</td></tr>`).join('')}</tbody>
+    </table></div>` : '<div class="empty-state">Sin ventas en el rango seleccionado</div>';
+
+  document.getElementById('dash-top-categorias').innerHTML = topCategorias.length ? `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Categoría</th><th class="num">Cant.</th><th class="num">Total vendido</th></tr></thead>
+      <tbody>${topCategorias.map(([n,d])=>`<tr><td>${escapeHtml(n)}</td><td class="num">${d.cantidad}</td><td class="num">${money(d.total)}</td></tr>`).join('')}</tbody>
+    </table></div>` : '<div class="empty-state">Sin ventas en el rango seleccionado</div>';
+
+  const q1 = {}, q2 = {};
+  ventas.forEach(v=>{
+    const dia = new Date(v.fecha).getDate();
+    const destino = dia<=15 ? q1 : q2;
+    (v.items||[]).forEach(it=>{
+      const producto = it.productoId ? DB.productos.find(p=>p.id===it.productoId) : null;
+      const categoria = producto?.categoria || 'Sin categoría';
+      destino[categoria] = (destino[categoria]||0) + it.total;
+    });
+  });
+  const topQ1 = Object.entries(q1).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topQ2 = Object.entries(q2).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const listaQuincena = (lista)=> lista.length ? lista.map(([n,total])=>`
+      <div class="list-item"><div class="li-main"><span class="li-title">${escapeHtml(n)}</span></div><span class="li-value">${money(total)}</span></div>
+    `).join('') : '<div class="empty-state">Sin ventas en este periodo</div>';
+  document.getElementById('dash-quincenas').innerHTML = `
+    <div class="resumen-grid">
+      <div><h4 style="font-size:13px;color:var(--azul);">Del 1 al 15</h4>${listaQuincena(topQ1)}</div>
+      <div><h4 style="font-size:13px;color:var(--azul);">Del 16 al fin de mes</h4>${listaQuincena(topQ2)}</div>
+    </div>
+  `;
+}
+
 function renderMetas(){
   const cont = document.getElementById('lista-metas');
   if(DB.metas.length===0){
@@ -2392,6 +2541,8 @@ function renderCambios(){
 }
 document.getElementById('btn-ver-cambios').addEventListener('click', ()=> switchView('cambios'));
 document.getElementById('btn-volver-perfil').addEventListener('click', ()=> switchView('perfil'));
+document.getElementById('btn-ver-dashboard').addEventListener('click', ()=> switchView('dashboard'));
+document.getElementById('btn-volver-finanzas').addEventListener('click', ()=> switchView('finanzas'));
 
 function renderTopbar(){
   const nombreNegocio = DB.negocio?.nombre || 'Mi negocio';
@@ -2414,6 +2565,7 @@ function renderAll(){
   renderCuentas();
   renderPerfil();
   renderCambios();
+  renderDashboard();
 }
 
 /* ================= INSTALAR APP (PWA) ================= */
