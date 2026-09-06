@@ -534,26 +534,6 @@
       <div class="modal-header"><h3>💰 Registrar venta</h3><button class="modal-close">✕</button></div>
 
       <div class="item-form">
-        <label>Producto o servicio
-          <select id="v-producto"><option value="">— Sin producto (servicio libre) —</option></select>
-        </label>
-        <label>Descripción (si no elegiste producto)
-          <input type="text" id="v-descripcion" placeholder="Ej: Corte de cabello">
-        </label>
-        <div class="item-form-row">
-          <label>Cantidad
-            <input type="number" id="v-cantidad" min="1" value="1">
-          </label>
-          <label>Precio unitario
-            <input type="number" id="v-precio" min="0" step="0.01">
-          </label>
-        </div>
-        <button type="button" class="btn btn-secondary btn-block" id="v-agregar-item">+ Agregar a la factura</button>
-      </div>
-
-      <div id="v-carrito-lista" class="list" style="margin:14px 0;"></div>
-
-      <form id="form-venta">
         <label>Cliente (opcional, obligatorio si es a crédito)
           <select id="v-cliente"><option value="">— Sin cliente —</option></select>
         </label>
@@ -574,6 +554,32 @@
         <label id="v-plazo-label" hidden>Plazo de pago (días)
           <input type="number" id="v-plazo" min="1" value="30">
         </label>
+      </div>
+
+      <div class="item-form">
+        <label>Producto o servicio
+          <select id="v-producto"><option value="">— Sin producto (servicio libre) —</option></select>
+        </label>
+        <label>Descripción (si no elegiste producto)
+          <input type="text" id="v-descripcion" placeholder="Ej: Corte de cabello">
+        </label>
+        <div class="item-form-row">
+          <label>Cantidad
+            <input type="number" id="v-cantidad" min="1" value="1">
+          </label>
+          <label>Precio unitario
+            <input type="number" id="v-precio" min="0" step="0.01">
+          </label>
+        </div>
+        <button type="button" class="btn btn-secondary btn-block" id="v-agregar-item">+ Agregar a la factura</button>
+      </div>
+
+      <div class="carrito-columnas" id="v-carrito-columnas" hidden>
+        <span>Descripción</span><span>Cant.</span><span>Vr. unit.</span><span>Vr. total</span><span></span>
+      </div>
+      <div id="v-carrito-lista" class="list" style="margin:0 0 14px;"></div>
+
+      <form id="form-venta">
         <div class="item-form-row">
           <label>Descuento (%)
             <input type="number" id="v-descuento" min="0" max="100" step="0.01" value="0">
@@ -594,24 +600,6 @@
       <div class="modal-header"><h3 id="compra-modal-titulo">🧾 Registrar compra</h3><button class="modal-close">✕</button></div>
 
       <div class="item-form">
-        <label>Producto
-          <select id="co-producto"><option value="">— Elige un producto —</option></select>
-        </label>
-        <div class="item-form-row">
-          <label>Cantidad comprada
-            <input type="number" id="co-cantidad" min="1" value="1">
-          </label>
-          <label>Costo unitario
-            <input type="number" id="co-costo" min="0" step="0.01">
-          </label>
-        </div>
-        <button type="button" class="btn btn-secondary btn-block" id="co-agregar-item">+ Agregar a la compra</button>
-      </div>
-
-      <div id="co-carrito-lista" class="list" style="margin:14px 0;"></div>
-
-      <form id="form-compra">
-        <input type="hidden" id="co-id">
         <label>Proveedor
           <select id="co-proveedor" required><option value="">— Elige un proveedor —</option></select>
         </label>
@@ -628,6 +616,30 @@
         <label id="co-vencimiento-label" hidden>Fecha de vencimiento de la factura
           <input type="date" id="co-vencimiento">
         </label>
+      </div>
+
+      <div class="item-form">
+        <label>Producto
+          <select id="co-producto"><option value="">— Elige un producto —</option></select>
+        </label>
+        <div class="item-form-row">
+          <label>Cantidad comprada
+            <input type="number" id="co-cantidad" min="1" value="1">
+          </label>
+          <label>Costo unitario
+            <input type="number" id="co-costo" min="0" step="0.01">
+          </label>
+        </div>
+        <button type="button" class="btn btn-secondary btn-block" id="co-agregar-item">+ Agregar a la compra</button>
+      </div>
+
+      <div class="carrito-columnas" id="co-carrito-columnas" hidden>
+        <span>Descripción</span><span>Cant.</span><span>Vr. unit.</span><span>Vr. total</span><span></span>
+      </div>
+      <div id="co-carrito-lista" class="list" style="margin:0 0 14px;"></div>
+
+      <form id="form-compra">
+        <input type="hidden" id="co-id">
         <div class="modal-total">Total: <strong id="co-total">$0</strong></div>
         <button type="submit" id="compra-submit-btn" class="btn btn-primary btn-block btn-lg">Guardar compra</button>
       </form>

@@ -494,14 +494,14 @@ function totalesCarritoVenta(){
 
 function renderCarritoVenta(){
   const cont = document.getElementById('v-carrito-lista');
+  document.getElementById('v-carrito-columnas').hidden = carritoVenta.length===0;
   cont.innerHTML = carritoVenta.length===0
     ? '<div class="empty-state">Aún no has agregado productos a la factura</div>'
     : carritoVenta.map((it,idx)=>`
       <div class="list-item carrito-item">
-        <div class="li-main">
-          <span class="li-title">${escapeHtml(it.descripcion)}</span>
-          <span class="li-sub">${it.cantidad} x ${money(it.precioUnitario)}</span>
-        </div>
+        <span class="li-title">${escapeHtml(it.descripcion)}</span>
+        <span class="carrito-cant">${it.cantidad}</span>
+        <span class="carrito-precio">${money(it.precioUnitario)}</span>
         <span class="li-value">${money(it.total)}</span>
         <button type="button" class="li-quitar" data-idx="${idx}">✕</button>
       </div>`).join('');
@@ -634,14 +634,14 @@ document.getElementById('co-tipo').addEventListener('change', actualizarTipoComp
 
 function renderCarritoCompra(){
   const cont = document.getElementById('co-carrito-lista');
+  document.getElementById('co-carrito-columnas').hidden = carritoCompra.length===0;
   cont.innerHTML = carritoCompra.length===0
     ? '<div class="empty-state">Aún no has agregado productos a la compra</div>'
     : carritoCompra.map((it,idx)=>`
       <div class="list-item carrito-item">
-        <div class="li-main">
-          <span class="li-title">${escapeHtml(it.descripcion)}</span>
-          <span class="li-sub">${it.cantidad} x ${money(it.costoUnitario)}</span>
-        </div>
+        <span class="li-title">${escapeHtml(it.descripcion)}</span>
+        <span class="carrito-cant">${it.cantidad}</span>
+        <span class="carrito-precio">${money(it.costoUnitario)}</span>
         <span class="li-value">${money(it.total)}</span>
         <button type="button" class="li-quitar" data-idx="${idx}">✕</button>
       </div>`).join('');

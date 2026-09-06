@@ -233,7 +233,17 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .item-form{display:flex;flex-direction:column;gap:12px;padding-bottom:14px;border-bottom:1px dashed var(--borde);margin-bottom:4px;}
 .item-form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .item-form label,.item-form-row label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--azul);}
-.carrito-item{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.carrito-columnas{
+  display:grid;grid-template-columns:2fr 0.6fr 1fr 1fr 20px;gap:8px;
+  padding:0 14px;margin-top:10px;font-size:10px;font-weight:700;color:var(--gris-texto);
+  text-transform:uppercase;letter-spacing:.02em;
+}
+.carrito-columnas span:nth-child(2){text-align:center;}
+.carrito-columnas span:nth-child(3),.carrito-columnas span:nth-child(4){text-align:right;}
+.carrito-item{display:grid;grid-template-columns:2fr 0.6fr 1fr 1fr 20px;gap:8px;align-items:center;}
+.carrito-item .carrito-cant{text-align:center;font-size:13px;}
+.carrito-item .carrito-precio{text-align:right;font-size:13px;color:var(--gris-texto);}
+.carrito-item .li-value{text-align:right;}
 .carrito-item .li-quitar{background:none;border:none;color:#d9534f;font-weight:700;cursor:pointer;font-size:16px;padding:0 4px;}
 
 /* Factura imprimible */
