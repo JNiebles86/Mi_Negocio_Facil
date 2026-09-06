@@ -304,13 +304,23 @@
         <button class="btn btn-secondary btn-block" id="btn-cierre-caja">📋 Cierre de caja de hoy</button>
 
         <h3 class="section-title">🧾 Facturas recientes</h3>
-        <div id="lista-facturas" class="list"></div>
+        <div class="master-detail">
+          <div id="lista-facturas" class="list"></div>
+          <div class="detail-panel" id="factura-detalle-panel">
+            <div class="empty-state">Selecciona una factura para ver el detalle</div>
+          </div>
+        </div>
 
         <h3 class="section-title">🧾 Gastos recientes</h3>
         <div id="lista-gastos" class="list"></div>
 
         <h3 class="section-title">🧾 Compras recientes</h3>
-        <div id="lista-compras" class="list"></div>
+        <div class="master-detail">
+          <div id="lista-compras" class="list"></div>
+          <div class="detail-panel" id="compra-detalle-panel">
+            <div class="empty-state">Selecciona una compra para ver el detalle</div>
+          </div>
+        </div>
       </section>
 
       <!-- PERFIL -->

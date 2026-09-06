@@ -185,6 +185,29 @@ function closeModals(){
 backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) closeModals(); });
 document.querySelectorAll('.modal-close').forEach(b=>b.addEventListener('click', closeModals));
 
+/* ---------- Vista maestro-detalle (lista + panel a la derecha en escritorio) ---------- */
+function isDesktopLayout(){
+  return window.matchMedia('(min-width:900px)').matches;
+}
+function mostrarDetalle(tituloTexto, htmlContenido, panelId){
+  // el modal siempre queda sincronizado (aunque quede oculto en escritorio) para que
+  // el botón "Imprimir" funcione igual desde el panel lateral o desde el modal en celular.
+  document.getElementById('detalle-titulo').textContent = tituloTexto;
+  document.getElementById('detalle-body').innerHTML = htmlContenido;
+  const panel = document.getElementById(panelId);
+  if(panel) panel.innerHTML = htmlContenido;
+  if(!isDesktopLayout()){
+    openModal('detalle');
+  }
+}
+function marcarSeleccionLista(listaId, id){
+  const cont = document.getElementById(listaId);
+  if(!cont) return;
+  cont.querySelectorAll('.list-item').forEach(el=>el.classList.remove('selected'));
+  const btn = cont.querySelector(`[data-id="${id}"]`);
+  btn?.closest('.list-item')?.classList.add('selected');
+}
+
 document.querySelectorAll('[data-open]').forEach(el=>{
   el.addEventListener('click', ()=>{
     const tipo = el.dataset.open;
@@ -759,8 +782,7 @@ function mostrarCompra(id){
       <td>${money(it.costoUnitario)}</td>
       <td>${money(it.total)}</td>
     </tr>`).join('');
-  document.getElementById('detalle-titulo').textContent = 'Detalle de compra';
-  document.getElementById('detalle-body').innerHTML = `
+  const html = `
     <div class="factura-doc">
       <div style="font-size:13px;margin-bottom:10px;">
         <strong>Proveedor:</strong> ${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}<br>
@@ -777,7 +799,8 @@ function mostrarCompra(id){
       <div class="modal-total" style="margin-top:10px;">Total: <strong>${money(compra.total)}</strong></div>
     </div>
   `;
-  openModal('detalle');
+  mostrarDetalle('Detalle de compra', html, 'compra-detalle-panel');
+  marcarSeleccionLista('lista-compras', id);
 }
 
 function renderCompras(){
@@ -1629,8 +1652,8 @@ function mostrarFactura(ventaId){
       <td>${money(it.total)}</td>
     </tr>`).join('');
 
-  document.getElementById('detalle-titulo').textContent = `Factura de venta No. ${venta.numeroFactura}${venta.anulada ? ' — ANULADA' : ''}`;
-  document.getElementById('detalle-body').innerHTML = `
+  const titulo = `Factura de venta No. ${venta.numeroFactura}${venta.anulada ? ' — ANULADA' : ''}`;
+  const html = `
     <button type="button" class="btn btn-secondary btn-block no-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
     <div class="factura-doc">
       <div class="factura-header">
@@ -1676,7 +1699,8 @@ function mostrarFactura(ventaId){
       </div>
     </div>
   `;
-  openModal('detalle');
+  mostrarDetalle(titulo, html, 'factura-detalle-panel');
+  marcarSeleccionLista('lista-facturas', ventaId);
 }
 
 function renderFacturas(){

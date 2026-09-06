@@ -173,6 +173,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .li-value.neg{color:#d9534f;}
 .stock-low{color:#d9534f !important;font-weight:700;}
 .empty-state{text-align:center;color:var(--gris-texto);font-size:13px;padding:24px 10px;}
+.list-item.selected{outline:2px solid var(--verde);}
+
+/* vista maestro-detalle (lista + panel a la derecha en escritorio) */
+.detail-panel{display:none;}
 
 /* registrar grid */
 .register-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;}
@@ -374,6 +378,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   .cards-grid{grid-template-columns:repeat(4,1fr);}
   .quick-actions{grid-template-columns:repeat(4,1fr);}
   .register-grid{grid-template-columns:repeat(3,1fr);}
+
+  /* vista maestro-detalle: lista a la izquierda, detalle a la derecha */
+  .master-detail{display:grid;grid-template-columns:1fr 1.2fr;gap:16px;align-items:start;}
+  .detail-panel{
+    display:block;position:sticky;top:24px;background:#fff;border-radius:16px;
+    padding:18px;box-shadow:var(--sombra);max-height:80vh;overflow-y:auto;
+  }
 }
 
 @media (min-width:900px) and (prefers-color-scheme: dark){
@@ -382,7 +393,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 
 @media (prefers-color-scheme: dark){
   html,body{background:#0b1620;color:#eef2f5;}
-  .card,.list-item,.finance-row,.profile-card,.onboarding-card,.bar-chart,.goal-item,.modal,.bottom-nav,.period-tab,.tab,.learn-item,.video-link,.action-card{
+  .card,.list-item,.finance-row,.profile-card,.onboarding-card,.bar-chart,.goal-item,.modal,.bottom-nav,.period-tab,.tab,.learn-item,.video-link,.action-card,.detail-panel{
     background:#132434;color:#eef2f5;
   }
   .learn-item summary,.video-title,.action-label{color:#eef2f5;}
