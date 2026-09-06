@@ -220,20 +220,25 @@
         <input type="text" id="buscar-inventario" class="search-input" placeholder="🔍 Buscar por nombre, SKU o categoría...">
         <div id="tabla-inventario"></div>
 
-        <h3 class="section-title">Kardex por producto</h3>
-        <label>Producto
-          <select id="kardex-producto"></select>
-        </label>
         <button class="btn btn-secondary btn-block" data-open="ajuste">⚖️ Registrar ajuste de inventario</button>
-        <div class="finance-rows" style="margin-top:12px;">
-          <div class="finance-row"><span>Existencia actual</span><strong id="kardex-saldo-actual">0</strong></div>
-        </div>
-        <h3 class="section-title">Movimientos (Kardex)</h3>
-        <p style="font-size:11px;color:var(--gris-texto);">Aquí verás las entradas (compras), salidas (ventas) y ajustes registrados desde que empezaste a usar este módulo.</p>
+
+        <h3 class="section-title">📒 Movimientos de inventario (todos los productos)</h3>
+        <p style="font-size:11px;color:var(--gris-texto);">Entradas (compras), salidas (ventas) y ajustes de todos tus productos, más recientes primero.</p>
+        <input type="text" id="kardex-buscar-producto" class="search-input" placeholder="🔍 Filtrar por nombre de producto...">
         <div class="date-filter">
           <label>Desde <input type="date" id="kardex-desde"></label>
           <label>Hasta <input type="date" id="kardex-hasta"></label>
           <button type="button" class="btn btn-secondary" id="kardex-limpiar">Limpiar</button>
+        </div>
+        <div id="tabla-movimientos"></div>
+
+        <h3 class="section-title">🔍 Kardex detallado de un producto</h3>
+        <p style="font-size:11px;color:var(--gris-texto);">Elige un producto para ver su saldo acumulado movimiento a movimiento.</p>
+        <label>Producto
+          <select id="kardex-producto"></select>
+        </label>
+        <div class="finance-rows" style="margin-top:12px;">
+          <div class="finance-row"><span>Existencia actual</span><strong id="kardex-saldo-actual">0</strong></div>
         </div>
         <div id="kardex-lista" class="list"></div>
       </section>
@@ -278,16 +283,31 @@
             <button type="button" class="btn btn-secondary" id="pagosprov-limpiar">Limpiar</button>
           </div>
           <div id="lista-pagos-realizados" class="list"></div>
+          <h3 class="section-title">💵 Abonos realizados a proveedores</h3>
+          <div class="date-filter">
+            <label>Desde <input type="date" id="abonosprov-desde"></label>
+            <label>Hasta <input type="date" id="abonosprov-hasta"></label>
+            <button type="button" class="btn btn-secondary" id="abonosprov-limpiar">Limpiar</button>
+          </div>
+          <div id="lista-abonos-proveedores" class="list"></div>
         </div>
 
         <div id="tab-cartera" class="tab-panel" hidden>
+          <p style="font-size:12px;">Toca "Cartera vigente" o "Cartera vencida" para ver el detalle factura por factura.</p>
           <div class="finance-rows">
-            <div class="finance-row"><span>✅ Cartera vigente</span><strong id="cartera-vigente">$0</strong></div>
-            <div class="finance-row"><span>⚠️ Cartera vencida</span><strong id="cartera-vencida">$0</strong></div>
+            <button type="button" class="finance-row clickable" id="btn-cartera-vigente"><span>✅ Cartera vigente</span><strong id="cartera-vigente">$0</strong></button>
+            <button type="button" class="finance-row clickable" id="btn-cartera-vencida"><span>⚠️ Cartera vencida</span><strong id="cartera-vencida">$0</strong></button>
             <div class="finance-row finance-total"><span>Total por cobrar</span><strong id="cartera-total">$0</strong></div>
           </div>
           <h3 class="section-title">Clientes con cartera vencida</h3>
           <div id="lista-cartera-vencida" class="list"></div>
+          <h3 class="section-title">💵 Abonos realizados por clientes</h3>
+          <div class="date-filter">
+            <label>Desde <input type="date" id="abonoscli-desde"></label>
+            <label>Hasta <input type="date" id="abonoscli-hasta"></label>
+            <button type="button" class="btn btn-secondary" id="abonoscli-limpiar">Limpiar</button>
+          </div>
+          <div id="lista-abonos-clientes" class="list"></div>
         </div>
 
         <div id="tab-resumen" class="tab-panel" hidden>
@@ -1070,6 +1090,22 @@
           <input type="number" id="m-valor" min="0" step="0.01" required>
         </label>
         <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar meta</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-abono" hidden>
+      <div class="modal-header"><h3>💵 Registrar abono</h3><button class="modal-close">✕</button></div>
+      <form id="form-abono">
+        <input type="hidden" id="ab-tipo">
+        <input type="hidden" id="ab-doc-id">
+        <p class="info-box full-w" id="ab-info"></p>
+        <label>Fecha del abono
+          <input type="date" id="ab-fecha" required>
+        </label>
+        <label>Valor del abono
+          <input type="number" id="ab-valor" min="1" step="0.01" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Registrar abono</button>
       </form>
     </div>
 

@@ -225,6 +225,8 @@ wireDateFilter('porpagar', renderPorPagar);
 wireDateFilter('resumen', renderResumenCuentas);
 wireDateFilter('historial', renderHistorialMensual);
 wireDateFilter('dashboard', renderDashboard);
+wireDateFilter('abonoscli', renderAbonosClientes);
+wireDateFilter('abonosprov', renderAbonosProveedores);
 
 /* ---------- Búsqueda de producto por código de barras / SKU / nombre (al facturar) ---------- */
 function buscarProductoPorCodigo(query){
@@ -1068,21 +1070,29 @@ function renderPorPagar(){
   cont.innerHTML = pendientes.map(c=>{
     const proveedor = DB.proveedores.find(pr=>pr.id===c.proveedorId);
     const vencida = c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date();
+    const abonado = totalAbonado(c);
+    const saldo = saldoFactura(c);
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}</span>
         <span class="li-sub">${fmtDate(c.fecha)}${c.numeroFacturaProveedor ? ` · ${escapeHtml(c.numeroFacturaProveedor)}` : ''}${c.fechaVencimiento ? ` · Vence: ${fmtDate(c.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
+        ${abonado>0 ? `<span class="li-sub">Total ${money(c.total)} · Abonado ${money(abonado)}</span>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        <span class="li-value neg">${money(c.total)}</span>
-        <button data-accion="marcar-compra-pagada" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+        <span class="li-value neg">${money(saldo)}</span>
+        <div style="display:flex;gap:6px;">
+          <button data-accion="abonar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Abonar</button>
+          <button data-accion="marcar-compra-pagada" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+        </div>
       </div>
     </div>`;
   }).join('');
 }
 document.getElementById('lista-por-pagar').addEventListener('click', (e)=>{
-  const btn = e.target.closest('[data-accion="marcar-compra-pagada"]');
-  if(btn) marcarCompraPagada(btn.dataset.id);
+  const btn = e.target.closest('[data-accion]');
+  if(!btn) return;
+  if(btn.dataset.accion==='marcar-compra-pagada') marcarCompraPagada(btn.dataset.id);
+  if(btn.dataset.accion==='abonar-compra') abrirModalAbono('compra', btn.dataset.id);
 });
 
 function renderPagosRealizados(){
@@ -1115,11 +1125,12 @@ function renderCartera(){
   const vencidasPorCliente = {};
   DB.ventas.filter(v=>v.tipoVenta==='credito' && !v.pagada && !v.anulada).forEach(v=>{
     const estaVencida = v.fechaVencimiento && new Date(v.fechaVencimiento) < hoy;
+    const saldo = saldoFactura(v);
     if(estaVencida){
-      vencida += v.total;
-      vencidasPorCliente[v.clienteId] = (vencidasPorCliente[v.clienteId]||0) + v.total;
+      vencida += saldo;
+      vencidasPorCliente[v.clienteId] = (vencidasPorCliente[v.clienteId]||0) + saldo;
     } else {
-      vigente += v.total;
+      vigente += saldo;
     }
   });
   document.getElementById('cartera-vigente').textContent = money(vigente);
@@ -1130,15 +1141,96 @@ function renderCartera(){
   const filas = Object.entries(vencidasPorCliente);
   if(filas.length===0){
     cont.innerHTML = '<div class="empty-state">No tienes cartera vencida 🎉</div>';
-    return;
+  } else {
+    cont.innerHTML = filas.map(([clienteId,saldo])=>{
+      const cliente = DB.clientes.find(c=>c.id===clienteId);
+      return `<div class="list-item">
+        <div class="li-main">
+          <span class="li-title">${escapeHtml(cliente?.nombres || cliente?.nombre || '(sin nombre)')}</span>
+        </div>
+        <span class="li-value neg">${money(saldo)}</span>
+      </div>`;
+    }).join('');
   }
-  cont.innerHTML = filas.map(([clienteId,saldo])=>{
-    const cliente = DB.clientes.find(c=>c.id===clienteId);
+  renderAbonosClientes();
+}
+
+function abrirCarteraDetalle(tipo){
+  const hoy = new Date();
+  const pendientes = DB.ventas.filter(v=>v.tipoVenta==='credito' && !v.pagada && !v.anulada);
+  const filas = pendientes.map(v=>{
+    const vencida = v.fechaVencimiento && new Date(v.fechaVencimiento) < hoy;
+    return { v, vencida, saldo: saldoFactura(v) };
+  }).filter(x=> tipo==='vencida' ? x.vencida : !x.vencida)
+    .sort((a,b)=> new Date(a.v.fechaVencimiento||a.v.fecha) - new Date(b.v.fechaVencimiento||b.v.fecha));
+
+  const titulo = tipo==='vencida' ? '⚠️ Cartera vencida — detalle' : '✅ Cartera vigente — detalle';
+  const html = filas.length ? filas.map(({v,saldo})=>{
+    const cliente = DB.clientes.find(c=>c.id===v.clienteId);
+    const dias = v.fechaVencimiento ? Math.round((new Date(v.fechaVencimiento)-hoy)/86400000) : null;
+    const diasTxt = dias===null ? 'Sin fecha de vencimiento'
+      : tipo==='vencida' ? `Vencida hace ${Math.abs(dias)} día(s)`
+      : `Vence en ${dias} día(s)`;
     return `<div class="list-item">
       <div class="li-main">
-        <span class="li-title">${escapeHtml(cliente?.nombres || cliente?.nombre || '(sin nombre)')}</span>
+        <span class="li-title">${escapeHtml(cliente?.nombres||cliente?.nombre||'(sin nombre)')} · Factura No. ${v.numeroFactura}</span>
+        <span class="li-sub">${fmtDate(v.fecha)} · ${diasTxt}</span>
       </div>
-      <span class="li-value neg">${money(saldo)}</span>
+      <span class="li-value ${tipo==='vencida'?'neg':''}">${money(saldo)}</span>
+    </div>`;
+  }).join('') : '<div class="empty-state">Sin facturas en esta categoría 🎉</div>';
+
+  document.getElementById('detalle-titulo').textContent = titulo;
+  document.getElementById('detalle-body').innerHTML = html;
+  openModal('detalle');
+}
+document.getElementById('btn-cartera-vigente').addEventListener('click', ()=> abrirCarteraDetalle('vigente'));
+document.getElementById('btn-cartera-vencida').addEventListener('click', ()=> abrirCarteraDetalle('vencida'));
+
+function renderAbonosClientes(){
+  const cont = document.getElementById('lista-abonos-clientes');
+  if(!cont) return;
+  const abonos = [];
+  DB.ventas.forEach(v=>{
+    (v.abonos||[]).forEach(ab=> abonos.push({ ...ab, venta:v }));
+  });
+  const filtrados = abonos.filter(a=> enRangoFecha(a.fecha,'abonoscli')).sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  if(filtrados.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no se han registrado abonos de clientes</div>';
+    return;
+  }
+  cont.innerHTML = filtrados.map(a=>{
+    const cliente = DB.clientes.find(c=>c.id===a.venta.clienteId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(cliente?.nombres||cliente?.nombre||'(sin nombre)')} · Factura No. ${a.venta.numeroFactura}</span>
+        <span class="li-sub">${fmtDateTime(a.fecha)}</span>
+      </div>
+      <span class="li-value">${money(a.valor)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderAbonosProveedores(){
+  const cont = document.getElementById('lista-abonos-proveedores');
+  if(!cont) return;
+  const abonos = [];
+  DB.compras.forEach(c=>{
+    (c.abonos||[]).forEach(ab=> abonos.push({ ...ab, compra:c }));
+  });
+  const filtrados = abonos.filter(a=> enRangoFecha(a.fecha,'abonosprov')).sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+  if(filtrados.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no se han registrado abonos a proveedores</div>';
+    return;
+  }
+  cont.innerHTML = filtrados.map(a=>{
+    const proveedor = DB.proveedores.find(p=>p.id===a.compra.proveedorId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}${a.compra.numeroFacturaProveedor ? ` · ${escapeHtml(a.compra.numeroFacturaProveedor)}` : ''}</span>
+        <span class="li-sub">${fmtDateTime(a.fecha)}</span>
+      </div>
+      <span class="li-value">${money(a.valor)}</span>
     </div>`;
   }).join('');
 }
@@ -1148,6 +1240,7 @@ function renderCuentas(){
   renderCobrosPagados();
   renderPorPagar();
   renderPagosRealizados();
+  renderAbonosProveedores();
   renderCartera();
   renderResumenCuentas();
 }
@@ -1162,7 +1255,7 @@ function renderResumenCuentas(){
   DB.ventas.filter(v=>v.tipoVenta==='credito' && !v.pagada && !v.anulada && enRangoFecha(v.fecha,'resumen')).forEach(v=>{
     if(!porCliente[v.clienteId]) porCliente[v.clienteId] = { facturas:0, total:0 };
     porCliente[v.clienteId].facturas++;
-    porCliente[v.clienteId].total += v.total;
+    porCliente[v.clienteId].total += saldoFactura(v);
   });
   const filasCobrar = Object.entries(porCliente).map(([clienteId,d])=>{
     const cliente = DB.clientes.find(c=>c.id===clienteId);
@@ -1180,7 +1273,7 @@ function renderResumenCuentas(){
   DB.compras.filter(c=>c.tipoCompra==='credito' && !c.pagada && enRangoFecha(c.fecha,'resumen')).forEach(c=>{
     if(!porProveedor[c.proveedorId]) porProveedor[c.proveedorId] = { facturas:0, total:0 };
     porProveedor[c.proveedorId].facturas++;
-    porProveedor[c.proveedorId].total += c.total;
+    porProveedor[c.proveedorId].total += saldoFactura(c);
   });
   const filasPagar = Object.entries(porProveedor).map(([proveedorId,d])=>{
     const proveedor = DB.proveedores.find(p=>p.id===proveedorId);
@@ -1740,10 +1833,16 @@ function abrirCodigosBarras(){
 }
 document.getElementById('btn-codigos-barras').addEventListener('click', abrirCodigosBarras);
 
+function totalAbonado(doc){
+  return (doc.abonos||[]).reduce((a,ab)=>a+ab.valor,0);
+}
+function saldoFactura(doc){
+  return Math.max(0, (doc.total||0) - totalAbonado(doc));
+}
 function saldoClientePendiente(clienteId){
   return DB.ventas
     .filter(v=>v.clienteId===clienteId && v.tipoVenta==='credito' && !v.pagada && !v.anulada)
-    .reduce((a,v)=>a+v.total,0);
+    .reduce((a,v)=>a+saldoFactura(v),0);
 }
 
 function renderClientes(){
@@ -2137,7 +2236,7 @@ function renderMetas(){
 function saldoClientePendienteEnRango(clienteId, prefijo){
   return DB.ventas
     .filter(v=>v.clienteId===clienteId && v.tipoVenta==='credito' && !v.pagada && !v.anulada && enRangoFecha(v.fecha,prefijo))
-    .reduce((a,v)=>a+v.total,0);
+    .reduce((a,v)=>a+saldoFactura(v),0);
 }
 function renderDeudores(){
   const cont = document.getElementById('lista-deudores');
@@ -2188,15 +2287,28 @@ function verDeudaCliente(clienteId){
   document.getElementById('detalle-titulo').textContent = `Deuda de ${cliente.nombres||cliente.nombre||''}`;
   document.getElementById('detalle-body').innerHTML = ventasCredito.length ? ventasCredito.map(v=>{
     const vencida = v.fechaVencimiento && new Date(v.fechaVencimiento) < new Date();
-    return `<div class="list-item">
-      <div class="li-main">
-        <span class="li-title">Factura No. ${v.numeroFactura}</span>
-        <span class="li-sub">${fmtDateTime(v.fecha)}${v.fechaVencimiento ? ` · Vence: ${fmtDate(v.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
+    const abonado = totalAbonado(v);
+    const saldo = saldoFactura(v);
+    const historialAbonos = (v.abonos||[]).length ? `
+      <div style="margin:4px 0 8px;padding-left:8px;border-left:2px solid var(--borde);">
+        ${v.abonos.map(ab=>`<div class="li-sub">💵 ${fmtDate(ab.fecha)} — ${money(ab.valor)}</div>`).join('')}
+      </div>` : '';
+    return `<div class="list-item" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div class="li-main">
+          <span class="li-title">Factura No. ${v.numeroFactura}</span>
+          <span class="li-sub">${fmtDateTime(v.fecha)}${v.fechaVencimiento ? ` · Vence: ${fmtDate(v.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
+          ${abonado>0 ? `<span class="li-sub">Total ${money(v.total)} · Abonado ${money(abonado)}</span>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <span class="li-value ${vencida?'neg':''}">${money(saldo)}</span>
+          <div style="display:flex;gap:6px;">
+            <button data-accion="abonar-venta" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Abonar</button>
+            <button data-accion="marcar-pagada" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+          </div>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        <span class="li-value ${vencida?'neg':''}">${money(v.total)}</span>
-        <button data-accion="marcar-pagada" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
-      </div>
+      ${historialAbonos}
     </div>`;
   }).join('') : '<div class="empty-state">Sin deudas pendientes</div>';
   openModal('detalle');
@@ -2230,14 +2342,65 @@ function marcarVentaPagada(ventaId){
   toast('Cuenta marcada como pagada ✅');
 }
 
+/* ================= ABONOS (pagos parciales a cuentas por cobrar/pagar) ================= */
+function abrirModalAbono(tipo, docId){
+  const doc = tipo==='venta' ? DB.ventas.find(v=>v.id===docId) : DB.compras.find(c=>c.id===docId);
+  if(!doc) return;
+  document.getElementById('ab-tipo').value = tipo;
+  document.getElementById('ab-doc-id').value = docId;
+  const saldo = saldoFactura(doc);
+  const entidad = tipo==='venta'
+    ? (()=>{ const c = DB.clientes.find(x=>x.id===doc.clienteId); return c ? (c.nombres||c.nombre) : 'Consumidor final'; })()
+    : (()=>{ const p = DB.proveedores.find(x=>x.id===doc.proveedorId); return p ? p.nombre : 'Proveedor eliminado'; })();
+  const numero = tipo==='venta' ? `Factura No. ${doc.numeroFactura}` : (doc.numeroFacturaProveedor ? `Factura ${doc.numeroFacturaProveedor}` : 'Compra sin número de factura');
+  document.getElementById('ab-info').innerHTML = `${escapeHtml(entidad)} · ${escapeHtml(numero)}<br>Total: ${money(doc.total)} · Abonado: ${money(totalAbonado(doc))}<br><strong>Saldo pendiente: ${money(saldo)}</strong>`;
+  document.getElementById('ab-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ab-valor').value = '';
+  document.getElementById('ab-valor').max = saldo;
+  openModal('abono');
+}
+
+document.getElementById('form-abono').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const tipo = document.getElementById('ab-tipo').value;
+  const docId = document.getElementById('ab-doc-id').value;
+  const doc = tipo==='venta' ? DB.ventas.find(v=>v.id===docId) : DB.compras.find(c=>c.id===docId);
+  if(!doc) return;
+  const valor = Number(document.getElementById('ab-valor').value)||0;
+  const fechaInput = document.getElementById('ab-fecha').value;
+  if(valor<=0){ toast('El valor del abono debe ser mayor a 0 ⚠️'); return; }
+  const saldo = saldoFactura(doc);
+  if(valor > saldo + 1){ toast(`El abono no puede ser mayor al saldo pendiente (${money(saldo)}) ⚠️`); return; }
+  const fechaISO = fechaInput ? new Date(fechaInput+'T12:00:00').toISOString() : new Date().toISOString();
+  doc.abonos = doc.abonos || [];
+  doc.abonos.push({ id: uid(), fecha: fechaISO, valor });
+
+  let mensaje = 'Abono registrado ✅';
+  if(saldoFactura(doc) <= 0){
+    doc.pagada = true;
+    doc.fechaPago = fechaISO;
+    mensaje = 'Abono registrado — factura saldada ✅';
+  }
+  const entidad = tipo==='venta'
+    ? (()=>{ const c = DB.clientes.find(x=>x.id===doc.clienteId); return c ? (c.nombres||c.nombre) : 'Consumidor final'; })()
+    : (()=>{ const p = DB.proveedores.find(x=>x.id===doc.proveedorId); return p ? p.nombre : 'Proveedor eliminado'; })();
+  registrarCambio(tipo==='venta' ? 'Venta' : 'Compra', 'Abono', `Registró un abono de ${money(valor)} a ${entidad}`);
+  saveDB();
+  closeModals();
+  toast(mensaje);
+  renderAll();
+});
+
 document.getElementById('lista-deudores').addEventListener('click', (e)=>{
   const el = e.target.closest('[data-accion="ver-deuda"]');
   if(el) verDeudaCliente(el.dataset.id);
 });
 
 document.getElementById('detalle-body').addEventListener('click', (e)=>{
-  const btn = e.target.closest('[data-accion="marcar-pagada"]');
-  if(btn) marcarVentaPagada(btn.dataset.id);
+  const btnPagar = e.target.closest('[data-accion="marcar-pagada"]');
+  if(btnPagar) marcarVentaPagada(btnPagar.dataset.id);
+  const btnAbonar = e.target.closest('[data-accion="abonar-venta"]');
+  if(btnAbonar) abrirModalAbono('venta', btnAbonar.dataset.id);
 });
 
 /* ================= CIERRE DE CAJA ================= */
@@ -2528,6 +2691,25 @@ function renderInventarioLista(){
 document.getElementById('buscar-inventario').addEventListener('input', renderInventarioLista);
 
 /* ================= KARDEX ================= */
+function todosLosMovimientosInventario(){
+  const movimientos = [];
+  DB.compras.forEach(c=>{
+    (c.items||[]).forEach(it=>{
+      if(it.productoId) movimientos.push({fecha:c.fecha, productoId:it.productoId, tipo:'Entrada', documento:`Compra${c.numeroFacturaProveedor?' '+c.numeroFacturaProveedor:''}`, cantidad: it.cantidad});
+    });
+  });
+  DB.ventas.forEach(v=>{
+    if(v.anulada) return;
+    (v.items||[]).forEach(it=>{
+      if(it.productoId) movimientos.push({fecha:v.fecha, productoId:it.productoId, tipo:'Salida', documento:`Factura #${v.numeroFactura}`, cantidad: -it.cantidad});
+    });
+  });
+  DB.ajustesInventario.forEach(a=>{
+    movimientos.push({fecha:a.fecha, productoId:a.productoId, tipo:'Ajuste', documento:a.motivo||'Ajuste', cantidad: a.tipo==='entrada' ? a.cantidad : -a.cantidad});
+  });
+  return movimientos;
+}
+
 function poblarSelectKardex(){
   const sel = document.getElementById('kardex-producto');
   const actual = sel.value;
@@ -2535,8 +2717,36 @@ function poblarSelectKardex(){
   if(actual && DB.productos.some(p=>p.id===actual)) sel.value = actual;
 }
 
+function renderMovimientosInventario(){
+  const cont = document.getElementById('tabla-movimientos');
+  if(!cont) return;
+  const filtro = normalizarTexto(document.getElementById('kardex-buscar-producto').value.trim());
+  const movimientos = todosLosMovimientosInventario()
+    .filter(m=> enRangoFecha(m.fecha,'kardex'))
+    .map(m=>({ ...m, producto: DB.productos.find(p=>p.id===m.productoId) }))
+    .filter(m=> !filtro || normalizarTexto(m.producto?.nombre||'').includes(filtro))
+    .sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+
+  if(movimientos.length===0){
+    cont.innerHTML = '<div class="empty-state">Sin movimientos en el rango seleccionado</div>';
+    return;
+  }
+  cont.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Fecha</th><th>Producto</th><th>Documento</th><th class="num">Entrada</th><th class="num">Salida</th></tr></thead>
+      <tbody>${movimientos.map(m=>`<tr>
+        <td>${fmtDateTime(m.fecha)}</td>
+        <td>${escapeHtml(m.producto?.nombre || '(producto eliminado)')}</td>
+        <td>${escapeHtml(m.documento)}</td>
+        <td class="num">${m.cantidad>0 ? m.cantidad : '—'}</td>
+        <td class="num${m.cantidad<0?' neg':''}">${m.cantidad<0 ? Math.abs(m.cantidad) : '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+document.getElementById('kardex-buscar-producto').addEventListener('input', renderMovimientosInventario);
+
 function renderKardex(){
   const sel = document.getElementById('kardex-producto');
+  renderMovimientosInventario();
   if(DB.productos.length===0){
     sel.innerHTML = '';
     document.getElementById('kardex-lista').innerHTML = '<div class="empty-state">Agrega productos para ver su Kardex</div>';
@@ -2548,22 +2758,9 @@ function renderKardex(){
   const producto = DB.productos.find(p=>p.id===productoId);
   document.getElementById('kardex-saldo-actual').textContent = producto ? producto.cantidad : '0';
 
-  const movimientos = [];
-  DB.compras.forEach(c=>{
-    (c.items||[]).forEach(it=>{
-      if(it.productoId===productoId) movimientos.push({fecha:c.fecha, tipo:'Entrada', documento:`Compra${c.numeroFacturaProveedor?' '+c.numeroFacturaProveedor:''}`, cantidad: it.cantidad});
-    });
-  });
-  DB.ventas.forEach(v=>{
-    if(v.anulada) return;
-    (v.items||[]).forEach(it=>{
-      if(it.productoId===productoId) movimientos.push({fecha:v.fecha, tipo:'Salida', documento:`Factura #${v.numeroFactura}`, cantidad: -it.cantidad});
-    });
-  });
-  DB.ajustesInventario.forEach(a=>{
-    if(a.productoId===productoId) movimientos.push({fecha:a.fecha, tipo:'Ajuste', documento:a.motivo||'Ajuste', cantidad: a.tipo==='entrada' ? a.cantidad : -a.cantidad});
-  });
-  movimientos.sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const movimientos = todosLosMovimientosInventario()
+    .filter(m=>m.productoId===productoId)
+    .sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
 
   const cont = document.getElementById('kardex-lista');
   if(movimientos.length===0){

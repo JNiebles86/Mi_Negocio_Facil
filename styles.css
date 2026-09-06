@@ -190,6 +190,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 }
 .finance-row strong{font-size:16px;}
 .finance-total{background:var(--azul);color:#fff;}
+.finance-row.clickable{cursor:pointer;border:none;width:100%;font:inherit;color:inherit;text-align:left;}
+.finance-row.clickable:active{transform:scale(0.98);}
 .finance-total strong{color:var(--verde);}
 
 .bar-chart{display:flex;align-items:flex-end;gap:8px;height:130px;margin-top:12px;background:#fff;border-radius:14px;padding:14px;box-shadow:var(--sombra);}
