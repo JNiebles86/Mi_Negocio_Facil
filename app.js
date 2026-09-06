@@ -6,10 +6,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword, signOut
+  signInWithEmailAndPassword, signOut, deleteUser
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  initializeFirestore, persistentLocalCache, doc, getDoc, setDoc
+  initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -25,6 +25,12 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = initializeFirestore(firebaseApp, { localCache: persistentLocalCache() });
 
+// App secundaria de Firebase: se usa solo para crear cuentas de empleados sin
+// cerrar la sesión del administrador (crear un usuario con el SDK normalmente
+// inicia sesión automáticamente como ese usuario nuevo).
+const secondaryApp = initializeApp(firebaseConfig, 'secundaria');
+const secondaryAuth = getAuth(secondaryApp);
+
 const STORAGE_KEY = 'mnf_data_v1'; // clave usada por versiones anteriores (localStorage), solo para migrar datos viejos
 
 const CURRENCY_SYMBOLS = {
@@ -33,14 +39,18 @@ const CURRENCY_SYMBOLS = {
 
 let DB = null;
 let currentUser = null;
+let negocioId = null; // id del documento negocios/{id} que se está usando (propio o del negocio al que fue invitado)
+let rolActual = 'admin'; // 'admin' o 'empleado'
+
+function esAdmin(){ return rolActual !== 'empleado'; }
 
 /* ---------- Persistencia (Firestore, por usuario) ---------- */
 function emptyDB(){
   return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [], cambios: [] };
 }
 
-async function loadUserDB(uidUsuario){
-  const ref = doc(db, 'negocios', uidUsuario);
+async function loadUserDB(idNegocio){
+  const ref = doc(db, 'negocios', idNegocio);
   const snap = await getDoc(ref);
   // Se combina con emptyDB() para que cuentas creadas antes de agregar un campo nuevo (ej. proveedores) no rompan la app.
   if(snap.exists()) return { ...emptyDB(), ...snap.data() };
@@ -62,8 +72,8 @@ async function loadUserDB(uidUsuario){
 }
 
 function saveDB(){
-  if(!currentUser) return;
-  setDoc(doc(db, 'negocios', currentUser.uid), DB).catch(()=>{
+  if(!currentUser || !negocioId) return;
+  setDoc(doc(db, 'negocios', negocioId), DB).catch(()=>{
     toast('No se pudo sincronizar con la nube. Se reintentará al recuperar conexión ⚠️');
   });
 }
@@ -108,6 +118,39 @@ function inPeriod(dateStr, period){
   if(period==='semana') return d >= startOfWeek(now);
   if(period==='mes') return d >= startOfMonth(now);
   return true;
+}
+
+/* ---------- Filtro de fecha (desde/hasta) reutilizable en varias secciones ---------- */
+let dateFilters = {}; // { prefijo: {desde:'YYYY-MM-DD', hasta:'YYYY-MM-DD'} }
+
+function enRangoFecha(fechaISO, prefijo){
+  const f = dateFilters[prefijo];
+  if(!f || (!f.desde && !f.hasta)) return true;
+  const d = new Date(fechaISO);
+  if(f.desde && d < new Date(f.desde+'T00:00:00')) return false;
+  if(f.hasta && d > new Date(f.hasta+'T23:59:59')) return false;
+  return true;
+}
+function filtroFechaActivo(prefijo){
+  const f = dateFilters[prefijo];
+  return !!(f && (f.desde || f.hasta));
+}
+function wireDateFilter(prefijo, onChange){
+  const desde = document.getElementById(prefijo+'-desde');
+  const hasta = document.getElementById(prefijo+'-hasta');
+  const limpiar = document.getElementById(prefijo+'-limpiar');
+  if(!desde || !hasta) return;
+  const actualizar = ()=>{
+    dateFilters[prefijo] = { desde: desde.value, hasta: hasta.value };
+    onChange();
+  };
+  desde.addEventListener('change', actualizar);
+  hasta.addEventListener('change', actualizar);
+  if(limpiar) limpiar.addEventListener('click', ()=>{
+    desde.value=''; hasta.value='';
+    dateFilters[prefijo] = { desde:'', hasta:'' };
+    onChange();
+  });
 }
 
 /* ---------- Toast ---------- */
@@ -170,6 +213,104 @@ function wireTabs(tabsId){
 wireTabs('negocio-tabs');
 wireTabs('cuentas-tabs');
 
+wireDateFilter('kardex', renderKardex);
+wireDateFilter('cambios', renderCambios);
+wireDateFilter('facturas', renderFacturas);
+wireDateFilter('gastos', renderGastos);
+wireDateFilter('compras', renderCompras);
+wireDateFilter('cobros', renderCobrosPagados);
+wireDateFilter('pagosprov', renderPagosRealizados);
+wireDateFilter('porcobrar', renderDeudores);
+wireDateFilter('porpagar', renderPorPagar);
+wireDateFilter('resumen', renderResumenCuentas);
+wireDateFilter('historial', renderHistorialMensual);
+
+/* ---------- Búsqueda de producto por código de barras / SKU / nombre (al facturar) ---------- */
+function buscarProductoPorCodigo(query){
+  const q = (query||'').trim();
+  if(!q) return null;
+  const porBarras = DB.productos.find(p=>p.codigoBarras && p.codigoBarras===q);
+  if(porBarras) return porBarras;
+  const porSku = DB.productos.find(p=>p.sku && p.sku.toLowerCase()===q.toLowerCase());
+  if(porSku) return porSku;
+  const qNorm = normalizarTexto(q);
+  return DB.productos.find(p=>normalizarTexto(p.nombre||'').includes(qNorm)) || null;
+}
+function wireBuscarProducto(inputId, selectId){
+  const input = document.getElementById(inputId);
+  const select = document.getElementById(selectId);
+  if(!input || !select) return;
+  input.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const encontrado = buscarProductoPorCodigo(input.value);
+    if(encontrado){
+      select.value = encontrado.id;
+      select.dispatchEvent(new Event('change'));
+      input.value = '';
+    } else if(input.value.trim()){
+      toast('No se encontró ningún producto con ese código o nombre 🔍');
+    }
+  });
+}
+wireBuscarProducto('v-buscar-producto', 'v-producto');
+wireBuscarProducto('co-buscar-producto', 'co-producto');
+
+/* ---------- Búsqueda de cliente/proveedor por cédula/NIT o nombre (sin lista desplegable) ---------- */
+const buscadoresEntidad = {};
+function wireBuscarEntidad(clave, {buscarId, selectId, resultadoId, quitarId, lista, obtenerNombre}){
+  const input = document.getElementById(buscarId);
+  const select = document.getElementById(selectId);
+  const resultado = document.getElementById(resultadoId);
+  const quitar = document.getElementById(quitarId);
+  if(!input || !select || !resultado) return;
+  const texto = resultado.querySelector('.selector-resultado-texto');
+  const mostrar = (entidad)=>{
+    select.value = entidad.id;
+    select.dispatchEvent(new Event('change'));
+    const nombre = obtenerNombre(entidad) || '(sin nombre)';
+    texto.textContent = `${nombre}${entidad.numeroIdentificacion ? ' · '+entidad.numeroIdentificacion : ''}`;
+    resultado.hidden = false;
+    input.hidden = true;
+  };
+  input.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const q = input.value.trim();
+    if(!q) return;
+    const soloDigitos = q.replace(/\D/g,'');
+    const qNorm = normalizarTexto(q);
+    const encontrada = lista().find(x=>
+      (soloDigitos && (x.numeroIdentificacion||'').replace(/\D/g,'')===soloDigitos) ||
+      normalizarTexto(obtenerNombre(x)||'').includes(qNorm)
+    );
+    if(encontrada) mostrar(encontrada);
+    else toast('No se encontró ningún registro con esa identificación o nombre 🔍');
+  });
+  quitar?.addEventListener('click', ()=>{
+    select.value = '';
+    select.dispatchEvent(new Event('change'));
+    resultado.hidden = true;
+    input.hidden = false;
+    input.value = '';
+  });
+  buscadoresEntidad[clave] = {
+    reset(){ resultado.hidden = true; input.hidden = false; input.value = ''; },
+    mostrarPorId(id){
+      const entidad = lista().find(x=>x.id===id);
+      if(entidad) mostrar(entidad); else this.reset();
+    }
+  };
+}
+wireBuscarEntidad('cliente', {
+  buscarId:'v-buscar-cliente', selectId:'v-cliente', resultadoId:'v-cliente-resultado', quitarId:'v-cliente-quitar',
+  lista: ()=>DB.clientes, obtenerNombre: (c)=> c.nombres||c.nombre
+});
+wireBuscarEntidad('proveedor', {
+  buscarId:'co-buscar-proveedor', selectId:'co-proveedor', resultadoId:'co-proveedor-resultado', quitarId:'co-proveedor-quitar',
+  lista: ()=>DB.proveedores, obtenerNombre: (p)=> p.nombre
+});
+
 /* ---------- Modales ---------- */
 const backdrop = document.getElementById('modal-backdrop');
 function openModal(id){
@@ -217,6 +358,7 @@ document.querySelectorAll('[data-open]').forEach(el=>{
     if(tipo==='compra') return abrirModalCompra();
     if(tipo==='gasto') return abrirModalGasto(null);
     if(tipo==='ajuste') return abrirModalAjuste();
+    if(tipo==='empleado') return abrirModalEmpleado();
     openModal(tipo);
   });
 });
@@ -246,6 +388,7 @@ function abrirModalProducto(producto){
   document.getElementById('p-id').value = producto?.id || '';
   document.getElementById('p-nombre').value = producto?.nombre || '';
   document.getElementById('p-sku').value = producto?.sku || '';
+  document.getElementById('p-codigo-barras').value = producto?.codigoBarras || '';
   document.getElementById('p-categoria').value = producto?.categoria || '';
   document.getElementById('p-unidad').value = producto?.unidadMedida || '';
   document.getElementById('p-cantidad').value = producto?.cantidad ?? 0;
@@ -260,12 +403,23 @@ function abrirModalProducto(producto){
   openModal('producto');
 }
 
+function generarCodigoBarras(){
+  let codigo;
+  do{
+    codigo = String(Date.now()).slice(-9) + String(Math.floor(Math.random()*90)+10);
+  } while(DB.productos.some(p=>p.codigoBarras===codigo));
+  return codigo;
+}
+
 document.getElementById('form-producto').addEventListener('submit', (e)=>{
   e.preventDefault();
   const id = document.getElementById('p-id').value;
+  const existente = id ? DB.productos.find(p=>p.id===id) : null;
+  const codigoIngresado = document.getElementById('p-codigo-barras').value.trim();
   const datos = {
     nombre: document.getElementById('p-nombre').value.trim(),
     sku: document.getElementById('p-sku').value.trim(),
+    codigoBarras: codigoIngresado || existente?.codigoBarras || generarCodigoBarras(),
     categoria: document.getElementById('p-categoria').value.trim(),
     unidadMedida: document.getElementById('p-unidad').value.trim(),
     cantidad: Number(document.getElementById('p-cantidad').value)||0,
@@ -373,7 +527,7 @@ document.getElementById('form-cliente').addEventListener('submit', (e)=>{
     if(cliente) Object.assign(cliente, datos);
     registrarCambio('Cliente', 'Editar', `Editó el cliente "${datos.nombres}"`);
   } else {
-    DB.clientes.push({ id: uid(), ...datos });
+    DB.clientes.push({ id: uid(), creado: new Date().toISOString(), ...datos });
     registrarCambio('Cliente', 'Crear', `Registró el cliente "${datos.nombres}"`);
   }
   saveDB();
@@ -450,7 +604,7 @@ document.getElementById('form-proveedor').addEventListener('submit', (e)=>{
     if(proveedor) Object.assign(proveedor, datos);
     registrarCambio('Proveedor', 'Editar', `Editó el proveedor "${datos.nombre}"`);
   } else {
-    DB.proveedores.push({ id: uid(), ...datos });
+    DB.proveedores.push({ id: uid(), creado: new Date().toISOString(), ...datos });
     registrarCambio('Proveedor', 'Crear', `Registró el proveedor "${datos.nombre}"`);
   }
   saveDB();
@@ -486,6 +640,7 @@ function prepararModalVenta(){
   document.getElementById('v-precio').value = '';
   document.getElementById('v-item-iva').value = 0;
   document.getElementById('v-cliente').value = '';
+  buscadoresEntidad.cliente?.reset();
   document.getElementById('v-tipo').value = 'contado';
   document.getElementById('v-plazo').value = 30;
   document.getElementById('v-descuento').value = 0;
@@ -647,6 +802,8 @@ function abrirModalCompra(compra){
   document.getElementById('co-costo').value = '';
   document.getElementById('co-item-iva').value = 0;
   document.getElementById('co-proveedor').value = compra?.proveedorId || '';
+  if(compra?.proveedorId) buscadoresEntidad.proveedor?.mostrarPorId(compra.proveedorId);
+  else buscadoresEntidad.proveedor?.reset();
   document.getElementById('co-numero-factura').value = compra?.numeroFacturaProveedor || '';
   document.getElementById('co-tipo').value = compra?.tipoCompra || 'contado';
   document.getElementById('co-vencimiento').value = compra?.fechaVencimiento ? compra.fechaVencimiento.slice(0,10) : '';
@@ -840,7 +997,8 @@ function mostrarCompra(id){
 
 function renderCompras(){
   const cont = document.getElementById('lista-compras');
-  const comprasOrdenadas = DB.compras.slice().sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,20);
+  const limiteC = filtroFechaActivo('compras') ? 200 : 20;
+  const comprasOrdenadas = DB.compras.filter(c=>enRangoFecha(c.fecha,'compras')).sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,limiteC);
   if(comprasOrdenadas.length===0){
     cont.innerHTML = '<div class="empty-state">Aún no has registrado compras</div>';
     return;
@@ -858,7 +1016,7 @@ function renderCompras(){
         <div style="display:flex;gap:6px;">
           <button data-accion="ver-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Ver</button>
           <button data-accion="editar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
-          <button data-accion="eliminar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+          ${esAdmin() ? `<button data-accion="eliminar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -889,7 +1047,7 @@ function marcarCompraPagada(id){
 function renderPorPagar(){
   const cont = document.getElementById('lista-por-pagar');
   const pendientes = DB.compras
-    .filter(c=>c.tipoCompra==='credito' && !c.pagada)
+    .filter(c=>c.tipoCompra==='credito' && !c.pagada && enRangoFecha(c.fecha,'porpagar'))
     .sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
   if(pendientes.length===0){
     cont.innerHTML = '<div class="empty-state">No tienes cuentas por pagar pendientes 🎉</div>';
@@ -917,10 +1075,11 @@ document.getElementById('lista-por-pagar').addEventListener('click', (e)=>{
 
 function renderPagosRealizados(){
   const cont = document.getElementById('lista-pagos-realizados');
+  const limitePag = filtroFechaActivo('pagosprov') ? 200 : 20;
   const pagadas = DB.compras
-    .filter(c=>c.tipoCompra==='credito' && c.pagada)
+    .filter(c=>c.tipoCompra==='credito' && c.pagada && enRangoFecha(c.fechaPago||c.fecha,'pagosprov'))
     .sort((a,b)=> new Date(b.fechaPago||b.fecha) - new Date(a.fechaPago||a.fecha))
-    .slice(0,20);
+    .slice(0,limitePag);
   if(pagadas.length===0){
     cont.innerHTML = '<div class="empty-state">Todavía no has pagado ninguna cuenta a crédito</div>';
     return;
@@ -978,6 +1137,50 @@ function renderCuentas(){
   renderPorPagar();
   renderPagosRealizados();
   renderCartera();
+  renderResumenCuentas();
+}
+
+/* ================= RESUMEN CUENTAS (tablas estilo Excel) ================= */
+function renderResumenCuentas(){
+  const contCobrar = document.getElementById('tabla-resumen-cobrar');
+  const contPagar = document.getElementById('tabla-resumen-pagar');
+  if(!contCobrar || !contPagar) return;
+
+  const porCliente = {};
+  DB.ventas.filter(v=>v.tipoVenta==='credito' && !v.pagada && !v.anulada && enRangoFecha(v.fecha,'resumen')).forEach(v=>{
+    if(!porCliente[v.clienteId]) porCliente[v.clienteId] = { facturas:0, total:0 };
+    porCliente[v.clienteId].facturas++;
+    porCliente[v.clienteId].total += v.total;
+  });
+  const filasCobrar = Object.entries(porCliente).map(([clienteId,d])=>{
+    const cliente = DB.clientes.find(c=>c.id===clienteId);
+    return { nombre: cliente ? (cliente.nombres||cliente.nombre||'(sin nombre)') : '(cliente eliminado)', ...d };
+  }).sort((a,b)=> b.total-a.total);
+
+  contCobrar.innerHTML = filasCobrar.length ? `
+    <div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Cliente</th><th class="num"># Facturas</th><th class="num">Total adeudado</th></tr></thead>
+      <tbody>${filasCobrar.map(f=>`<tr><td>${escapeHtml(f.nombre)}</td><td class="num">${f.facturas}</td><td class="num">${money(f.total)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="total-row"><td>TOTAL</td><td class="num">${filasCobrar.reduce((a,f)=>a+f.facturas,0)}</td><td class="num">${money(filasCobrar.reduce((a,f)=>a+f.total,0))}</td></tr></tfoot>
+    </table></div>` : '<div class="empty-state">No hay cuentas por cobrar pendientes 🎉</div>';
+
+  const porProveedor = {};
+  DB.compras.filter(c=>c.tipoCompra==='credito' && !c.pagada && enRangoFecha(c.fecha,'resumen')).forEach(c=>{
+    if(!porProveedor[c.proveedorId]) porProveedor[c.proveedorId] = { facturas:0, total:0 };
+    porProveedor[c.proveedorId].facturas++;
+    porProveedor[c.proveedorId].total += c.total;
+  });
+  const filasPagar = Object.entries(porProveedor).map(([proveedorId,d])=>{
+    const proveedor = DB.proveedores.find(p=>p.id===proveedorId);
+    return { nombre: proveedor ? proveedor.nombre : '(proveedor eliminado)', ...d };
+  }).sort((a,b)=> b.total-a.total);
+
+  contPagar.innerHTML = filasPagar.length ? `
+    <div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Proveedor</th><th class="num"># Facturas</th><th class="num">Total a pagar</th></tr></thead>
+      <tbody>${filasPagar.map(f=>`<tr><td>${escapeHtml(f.nombre)}</td><td class="num">${f.facturas}</td><td class="num">${money(f.total)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="total-row"><td>TOTAL</td><td class="num">${filasPagar.reduce((a,f)=>a+f.facturas,0)}</td><td class="num">${money(filasPagar.reduce((a,f)=>a+f.total,0))}</td></tr></tfoot>
+    </table></div>` : '<div class="empty-state">No hay cuentas por pagar pendientes 🎉</div>';
 }
 
 /* ================= AJUSTES DE INVENTARIO ================= */
@@ -1067,7 +1270,8 @@ function eliminarGasto(id){
 
 function renderGastos(){
   const cont = document.getElementById('lista-gastos');
-  const gastosOrdenados = DB.gastos.slice().sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,20);
+  const limiteG = filtroFechaActivo('gastos') ? 200 : 20;
+  const gastosOrdenados = DB.gastos.filter(g=>enRangoFecha(g.fecha,'gastos')).sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,limiteG);
   if(gastosOrdenados.length===0){
     cont.innerHTML = '<div class="empty-state">Aún no has registrado gastos</div>';
     return;
@@ -1081,7 +1285,7 @@ function renderGastos(){
         <span class="li-value neg">${money(g.valor)}</span>
         <div style="display:flex;gap:6px;">
           <button data-accion="editar-gasto" data-id="${g.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
-          <button data-accion="eliminar-gasto" data-id="${g.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+          ${esAdmin() ? `<button data-accion="eliminar-gasto" data-id="${g.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>` : ''}
         </div>
       </div>
     </div>`).join('');
@@ -1145,6 +1349,108 @@ document.getElementById('btn-guardar-facturacion').addEventListener('click', ()=
   saveDB();
   toast('Datos de facturación actualizados ✅');
   renderAll();
+});
+
+/* ================= EMPLEADOS (roles) ================= */
+function abrirModalEmpleado(){
+  document.getElementById('form-empleado').reset();
+  document.getElementById('emp-error').hidden = true;
+  openModal('empleado');
+}
+
+document.getElementById('form-empleado').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const errBox = document.getElementById('emp-error');
+  errBox.hidden = true;
+  const nombre = document.getElementById('emp-nombre').value.trim();
+  const numeroIdentificacion = document.getElementById('emp-identificacion').value.trim();
+  const direccion = document.getElementById('emp-direccion').value.trim();
+  const telefono = document.getElementById('emp-telefono').value.trim();
+  const clave = document.getElementById('emp-clave').value;
+  if(!validarTelefono(telefono)){
+    errBox.textContent = 'Ingresa un número de celular válido (10 dígitos).';
+    errBox.hidden = false;
+    return;
+  }
+  if(!validarPin(clave)){
+    errBox.textContent = 'La contraseña debe tener 6 dígitos.';
+    errBox.hidden = false;
+    return;
+  }
+  if((DB.negocio.empleados||[]).some(emp=>emp.telefono===telefono)){
+    errBox.textContent = 'Ya invitaste a un empleado con ese número de celular.';
+    errBox.hidden = false;
+    return;
+  }
+  const btn = document.getElementById('emp-submit-btn');
+  btn.disabled = true;
+  let usuarioCreado = null;
+  try{
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, telefonoToEmail(telefono), clave);
+    usuarioCreado = cred.user;
+    await setDoc(doc(db, 'accesos', usuarioCreado.uid), {
+      negocioId, rol: 'empleado', nombre, telefono, creado: new Date().toISOString()
+    });
+    await signOut(secondaryAuth);
+    DB.negocio.empleados = DB.negocio.empleados || [];
+    DB.negocio.empleados.push({ uid: usuarioCreado.uid, nombre, numeroIdentificacion, direccion, telefono, rol: 'empleado', creado: new Date().toISOString() });
+    DB.negocio.empleadosUids = DB.negocio.empleados.map(e=>e.uid);
+    registrarCambio('Empleados', 'Crear', `Invitó a "${nombre}" como empleado`);
+    saveDB();
+    closeModals();
+    toast('Empleado agregado ✅');
+    renderAll();
+  }catch(err){
+    // si la cuenta llegó a crearse pero el resto falló (p.ej. faltan permisos en Firestore),
+    // se revierte para no dejar una cuenta de acceso huérfana.
+    if(usuarioCreado){
+      try{ await deleteUser(usuarioCreado); }catch(e2){ /* no se pudo revertir, quedará huérfana */ }
+      try{ await signOut(secondaryAuth); }catch(e2){ /* ignorar */ }
+    }
+    if(err.code==='permission-denied'){
+      errBox.textContent = 'Tu negocio necesita que se actualicen las reglas de seguridad de Firestore para poder agregar empleados. Pide ayuda técnica para activar esta función.';
+    } else {
+      errBox.textContent = authErrorMessage(err);
+    }
+    errBox.hidden = false;
+  }
+  btn.disabled = false;
+});
+
+async function eliminarEmpleado(uidEmpleado){
+  const emp = (DB.negocio.empleados||[]).find(e=>e.uid===uidEmpleado);
+  if(!emp) return;
+  if(!confirm(`¿Quitar el acceso de "${emp.nombre}"? Ya no podrá iniciar sesión en este negocio.`)) return;
+  try{ await deleteDoc(doc(db, 'accesos', uidEmpleado)); }catch(e){ /* sin conexión: igual se quita localmente */ }
+  DB.negocio.empleados = DB.negocio.empleados.filter(e=>e.uid!==uidEmpleado);
+  DB.negocio.empleadosUids = DB.negocio.empleados.map(e=>e.uid);
+  registrarCambio('Empleados', 'Eliminar', `Quitó el acceso de "${emp.nombre}"`);
+  saveDB();
+  renderAll();
+  toast('Acceso eliminado 🗑️');
+}
+
+function renderEmpleados(){
+  const cont = document.getElementById('lista-empleados');
+  if(!cont) return;
+  const empleados = DB.negocio?.empleados || [];
+  if(empleados.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no has agregado empleados</div>';
+    return;
+  }
+  cont.innerHTML = empleados.map(emp=>`
+    <div class="empleado-row">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(emp.nombre)}<span class="rol-tag">Empleado</span></span>
+        <span class="li-sub">+57 ${escapeHtml(emp.telefono)}${emp.numeroIdentificacion ? ` · CC ${escapeHtml(emp.numeroIdentificacion)}` : ''}</span>
+        ${emp.direccion ? `<span class="li-sub">${escapeHtml(emp.direccion)}</span>` : ''}
+      </div>
+      <button data-accion="eliminar-empleado" data-id="${emp.uid}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Quitar acceso</button>
+    </div>`).join('');
+}
+document.getElementById('lista-empleados').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion="eliminar-empleado"]');
+  if(btn) eliminarEmpleado(btn.dataset.id);
 });
 
 document.getElementById('btn-exportar').addEventListener('click', ()=>{
@@ -1343,7 +1649,8 @@ function renderProductos(){
   const lista = filtro
     ? DB.productos.filter(p=>
         normalizarTexto(p.nombre||'').includes(filtro) ||
-        normalizarTexto(p.sku||'').includes(filtro)
+        normalizarTexto(p.sku||'').includes(filtro) ||
+        normalizarTexto(p.codigoBarras||'').includes(filtro)
       )
     : DB.productos;
   if(lista.length===0){
@@ -1354,7 +1661,7 @@ function renderProductos(){
     const bajo = p.cantidad <= p.cantidadMinima;
     const proveedor = DB.proveedores.find(pr=>pr.id===p.proveedorId);
     const estado = p.estado || 'Activo';
-    const detalles = [p.categoria, p.unidadMedida, `IVA ${p.ivaPct ?? 0}%`].filter(Boolean).join(' · ');
+    const detalles = [p.categoria, p.unidadMedida, `IVA ${p.ivaPct ?? 0}%`, p.codigoBarras ? `Cód. barras: ${p.codigoBarras}` : null].filter(Boolean).join(' · ');
     return `<div class="list-item">
       <div class="li-main">
         <span class="li-title">${escapeHtml(p.nombre)}${p.sku ? ` <span class="li-sub">(${escapeHtml(p.sku)})</span>` : ''}${estado!=='Activo' ? `<span class="badge-estado">${escapeHtml(estado)}</span>` : ''}</span>
@@ -1366,12 +1673,43 @@ function renderProductos(){
         <span class="li-value">${money(p.precioVenta)}</span>
         <div style="display:flex;gap:6px;">
           <button data-accion="editar-producto" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
-          <button data-accion="eliminar-producto" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+          ${esAdmin() ? `<button data-accion="eliminar-producto" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>` : ''}
         </div>
       </div>
     </div>`;
   }).join('');
 }
+
+/* ================= CÓDIGOS DE BARRAS (base de datos + etiquetas imprimibles) ================= */
+function abrirCodigosBarras(){
+  const productos = DB.productos.filter(p=>p.codigoBarras).slice().sort((a,b)=> a.nombre.localeCompare(b.nombre));
+
+  const tablaHtml = productos.length ? `
+    <div class="data-table-wrap no-print"><table class="data-table">
+      <thead><tr><th>Producto</th><th>Código de barras</th></tr></thead>
+      <tbody>${productos.map(p=>`<tr><td>${escapeHtml(p.nombre)}</td><td>${escapeHtml(p.codigoBarras)}</td></tr>`).join('')}</tbody>
+    </table></div>` : '<div class="empty-state no-print">Todavía no tienes productos con código de barras</div>';
+
+  const etiquetasHtml = productos.length ? `
+    <div class="etiquetas-grid">
+      ${productos.map(p=>`<div class="etiqueta">
+        <div class="etiqueta-codigo">${escapeHtml(p.codigoBarras)}</div>
+        <div class="etiqueta-nombre">${escapeHtml(p.nombre)}</div>
+      </div>`).join('')}
+    </div>` : '';
+
+  document.getElementById('detalle-titulo').textContent = '🏷️ Códigos de tus productos';
+  document.getElementById('detalle-body').innerHTML = `
+    <button type="button" class="btn btn-secondary btn-block no-print" onclick="window.print()">🖨️ Imprimir etiquetas / Guardar PDF</button>
+    <p class="no-print" style="font-size:12px;">Cada producto nuevo recibe un código automáticamente si no le pusiste uno. Abajo tienes la lista para consultar en pantalla; más abajo, las etiquetas listas para imprimir, recortar y pegar en cada producto (al imprimir solo salen las etiquetas).</p>
+    <h4 class="no-print" style="margin-top:14px;font-size:13px;color:var(--azul);">📋 Lista de códigos</h4>
+    ${tablaHtml}
+    <h4 style="margin-top:18px;font-size:13px;color:var(--azul);">✂️ Etiquetas para imprimir y recortar</h4>
+    ${etiquetasHtml}
+  `;
+  openModal('detalle');
+}
+document.getElementById('btn-codigos-barras').addEventListener('click', abrirCodigosBarras);
 
 function saldoClientePendiente(clienteId){
   return DB.ventas
@@ -1410,7 +1748,7 @@ function renderClientes(){
         ${saldo>0 ? `<span class="li-value neg">Debe ${money(saldo)}</span>` : `<span class="li-value">Al día</span>`}
         <div style="display:flex;gap:6px;">
           <button data-accion="editar-cliente" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
-          <button data-accion="eliminar-cliente" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+          ${esAdmin() ? `<button data-accion="eliminar-cliente" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -1445,7 +1783,7 @@ function renderProveedores(){
       </div>
       <div style="display:flex;gap:6px;">
         <button data-accion="editar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Editar</button>
-        <button data-accion="eliminar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>
+        ${esAdmin() ? `<button data-accion="eliminar-proveedor" data-id="${p.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Eliminar</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -1499,6 +1837,50 @@ function renderFinanzas(){
   renderMetas();
   renderGastos();
   renderCompras();
+  renderHistorialMensual();
+}
+
+/* ================= HISTORIAL MENSUAL (gastos, ventas, compras, clientes y proveedores) ================= */
+function mesKey(fechaISO){
+  const d = new Date(fechaISO);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function mesLabel(key){
+  const [y,m] = key.split('-');
+  const d = new Date(Number(y), Number(m)-1, 1);
+  const txt = d.toLocaleDateString('es-CO',{month:'long', year:'numeric'});
+  return txt.charAt(0).toUpperCase() + txt.slice(1);
+}
+function renderHistorialMensual(){
+  const cont = document.getElementById('tabla-historial-mensual');
+  if(!cont) return;
+  const meses = {};
+  const acumular = (fechaISO, campo, valor)=>{
+    if(!fechaISO || !enRangoFecha(fechaISO,'historial')) return;
+    const key = mesKey(fechaISO);
+    if(!meses[key]) meses[key] = { ventas:0, gastos:0, compras:0, clientesNuevos:0, proveedoresNuevos:0 };
+    meses[key][campo] += valor;
+  };
+  DB.ventas.filter(v=>!v.anulada).forEach(v=> acumular(v.fecha,'ventas', v.total));
+  DB.gastos.forEach(g=> acumular(g.fecha,'gastos', g.valor));
+  DB.compras.forEach(c=> acumular(c.fecha,'compras', c.total));
+  DB.clientes.forEach(c=> acumular(c.creado,'clientesNuevos', 1));
+  DB.proveedores.forEach(p=> acumular(p.creado,'proveedoresNuevos', 1));
+
+  let keys = Object.keys(meses).sort().reverse();
+  if(!filtroFechaActivo('historial')) keys = keys.slice(0,12);
+
+  if(keys.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no hay datos suficientes para mostrar un historial mensual</div>';
+    return;
+  }
+  cont.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+    <thead><tr><th>Mes</th><th class="num">Ventas</th><th class="num">Gastos</th><th class="num">Compras</th><th class="num">Clientes nuevos</th><th class="num">Proveedores nuevos</th></tr></thead>
+    <tbody>${keys.map(k=>{
+      const m = meses[k];
+      return `<tr><td>${escapeHtml(mesLabel(k))}</td><td class="num">${money(m.ventas)}</td><td class="num">${money(m.gastos)}</td><td class="num">${money(m.compras)}</td><td class="num">${m.clientesNuevos}</td><td class="num">${m.proveedoresNuevos}</td></tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
 }
 
 function renderMetas(){
@@ -1530,10 +1912,15 @@ function renderMetas(){
 }
 
 /* ================= CUENTAS POR COBRAR ================= */
+function saldoClientePendienteEnRango(clienteId, prefijo){
+  return DB.ventas
+    .filter(v=>v.clienteId===clienteId && v.tipoVenta==='credito' && !v.pagada && !v.anulada && enRangoFecha(v.fecha,prefijo))
+    .reduce((a,v)=>a+v.total,0);
+}
 function renderDeudores(){
   const cont = document.getElementById('lista-deudores');
   const deudores = DB.clientes
-    .map(c=>({ cliente:c, saldo: saldoClientePendiente(c.id) }))
+    .map(c=>({ cliente:c, saldo: saldoClientePendienteEnRango(c.id,'porcobrar') }))
     .filter(d=>d.saldo>0);
   if(deudores.length===0){
     cont.innerHTML = '<div class="empty-state">No tienes clientes con deudas pendientes 🎉</div>';
@@ -1551,10 +1938,11 @@ function renderDeudores(){
 
 function renderCobrosPagados(){
   const cont = document.getElementById('lista-cobros-pagados');
+  const limiteCob = filtroFechaActivo('cobros') ? 200 : 20;
   const pagadas = DB.ventas
-    .filter(v=>v.tipoVenta==='credito' && v.pagada && !v.anulada)
+    .filter(v=>v.tipoVenta==='credito' && v.pagada && !v.anulada && enRangoFecha(v.fechaPago||v.fecha,'cobros'))
     .sort((a,b)=> new Date(b.fechaPago||b.fecha) - new Date(a.fechaPago||a.fecha))
-    .slice(0,20);
+    .slice(0,limiteCob);
   if(pagadas.length===0){
     cont.innerHTML = '<div class="empty-state">Todavía no has cobrado ninguna venta a crédito</div>';
     return;
@@ -1665,6 +2053,111 @@ function abrirCierreCaja(){
 }
 document.getElementById('btn-cierre-caja').addEventListener('click', abrirCierreCaja);
 
+/* ================= INFORME MENSUAL DETALLADO (no consolidado) ================= */
+function abrirInformeMensual(){
+  const desdeInput = document.getElementById('informe-desde').value;
+  const hastaInput = document.getElementById('informe-hasta').value;
+  let desde, hasta, etiquetaPeriodo;
+  if(desdeInput || hastaInput){
+    desde = desdeInput ? new Date(desdeInput+'T00:00:00') : null;
+    hasta = hastaInput ? new Date(hastaInput+'T23:59:59') : null;
+    etiquetaPeriodo = `Del ${desdeInput ? fmtDate(desde) : '…'} al ${hastaInput ? fmtDate(hasta) : '…'}`;
+  } else {
+    const hoy = new Date();
+    desde = startOfMonth(hoy);
+    hasta = new Date(); hasta.setHours(23,59,59,999);
+    etiquetaPeriodo = mesLabel(mesKey(hoy));
+  }
+  const enRango = (fechaISO)=>{
+    const d = new Date(fechaISO);
+    if(desde && d<desde) return false;
+    if(hasta && d>hasta) return false;
+    return true;
+  };
+
+  const ventas = DB.ventas.filter(v=>!v.anulada && enRango(v.fecha)).sort((a,b)=> new Date(a.fecha)-new Date(b.fecha));
+  const gastos = DB.gastos.filter(g=> enRango(g.fecha)).sort((a,b)=> new Date(a.fecha)-new Date(b.fecha));
+  const cobros = DB.ventas.filter(v=>v.tipoVenta==='credito' && v.pagada && !v.anulada && enRango(v.fechaPago||v.fecha)).sort((a,b)=> new Date(a.fechaPago||a.fecha)-new Date(b.fechaPago||b.fecha));
+  const pagosProv = DB.compras.filter(c=>c.tipoCompra==='credito' && c.pagada && enRango(c.fechaPago||c.fecha)).sort((a,b)=> new Date(a.fechaPago||a.fecha)-new Date(b.fechaPago||b.fecha));
+
+  const totalVentas = ventas.reduce((a,v)=>a+v.total,0);
+  const totalGastos = gastos.reduce((a,g)=>a+g.valor,0);
+  const totalCobros = cobros.reduce((a,v)=>a+v.total,0);
+  const totalPagosProv = pagosProv.reduce((a,c)=>a+c.total,0);
+
+  const filaVenta = (v)=>{
+    const cliente = DB.clientes.find(c=>c.id===v.clienteId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">Factura No. ${v.numeroFactura}${v.tipoVenta==='credito' ? (v.pagada ? ' · Crédito (pagada)' : ' · Crédito (pendiente)') : ' · Contado'}</span>
+        <span class="li-sub">${fmtDateTime(v.fecha)} · ${escapeHtml(cliente ? (cliente.nombres||cliente.nombre) : 'Consumidor final')}</span>
+      </div>
+      <span class="li-value">${money(v.total)}</span>
+    </div>`;
+  };
+  const filaGasto = (g)=>`<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">${escapeHtml(g.nombre)}</span>
+        <span class="li-sub">${fmtDateTime(g.fecha)} · ${escapeHtml(g.categoria||'')}</span>
+      </div>
+      <span class="li-value neg">${money(g.valor)}</span>
+    </div>`;
+  const filaCobro = (v)=>{
+    const cliente = DB.clientes.find(c=>c.id===v.clienteId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">Cobro · Factura No. ${v.numeroFactura}</span>
+        <span class="li-sub">${fmtDateTime(v.fechaPago||v.fecha)} · ${escapeHtml(cliente ? (cliente.nombres||cliente.nombre) : '(sin nombre)')}</span>
+      </div>
+      <span class="li-value">${money(v.total)}</span>
+    </div>`;
+  };
+  const filaPago = (c)=>{
+    const proveedor = DB.proveedores.find(p=>p.id===c.proveedorId);
+    return `<div class="list-item">
+      <div class="li-main">
+        <span class="li-title">Pago a proveedor${c.numeroFacturaProveedor ? ' · '+escapeHtml(c.numeroFacturaProveedor) : ''}</span>
+        <span class="li-sub">${fmtDateTime(c.fechaPago||c.fecha)} · ${escapeHtml(proveedor ? proveedor.nombre : '(proveedor eliminado)')}</span>
+      </div>
+      <span class="li-value neg">${money(c.total)}</span>
+    </div>`;
+  };
+
+  const html = `
+    <button type="button" class="btn btn-secondary btn-block no-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+    <p style="font-size:12px;color:var(--gris-texto);">${escapeHtml(etiquetaPeriodo)}</p>
+    <div class="informe-resumen">
+      <div class="card card-green"><span class="card-label">Ventas</span><span class="card-value">${money(totalVentas)}</span></div>
+      <div class="card card-yellow"><span class="card-label">Gastos</span><span class="card-value">${money(totalGastos)}</span></div>
+      <div class="card card-blue"><span class="card-label">Cobros</span><span class="card-value">${money(totalCobros)}</span></div>
+      <div class="card card-dark"><span class="card-label">Pagos a prov.</span><span class="card-value">${money(totalPagosProv)}</span></div>
+    </div>
+
+    <div class="informe-bloque">
+      <h4>💰 Resumen de ventas (${ventas.length})</h4>
+      ${ventas.length ? ventas.map(filaVenta).join('') : '<div class="empty-state">Sin ventas en el rango</div>'}
+      <div class="informe-subtotal"><span>Subtotal ventas</span><span>${money(totalVentas)}</span></div>
+    </div>
+
+    <div class="informe-bloque">
+      <h4>💵 Resumen de pagos — cobros a clientes y pagos a proveedores (${cobros.length + pagosProv.length})</h4>
+      ${(cobros.length+pagosProv.length) ? [...cobros.map(filaCobro), ...pagosProv.map(filaPago)].join('') : '<div class="empty-state">Sin pagos en el rango</div>'}
+      <div class="informe-subtotal"><span>Subtotal cobros a clientes</span><span>${money(totalCobros)}</span></div>
+      <div class="informe-subtotal"><span>Subtotal pagos a proveedores</span><span>${money(totalPagosProv)}</span></div>
+    </div>
+
+    <div class="informe-bloque">
+      <h4>🧾 Resumen de gastos (${gastos.length})</h4>
+      ${gastos.length ? gastos.map(filaGasto).join('') : '<div class="empty-state">Sin gastos en el rango</div>'}
+      <div class="informe-subtotal"><span>Subtotal gastos</span><span>${money(totalGastos)}</span></div>
+    </div>
+  `;
+  document.getElementById('detalle-titulo').textContent = '📄 Informe mensual detallado';
+  document.getElementById('detalle-body').innerHTML = html;
+  openModal('detalle');
+}
+document.getElementById('btn-ver-informe').addEventListener('click', abrirInformeMensual);
+
 /* ================= FACTURA IMPRIMIBLE ================= */
 function mostrarFactura(ventaId){
   const venta = DB.ventas.find(v=>v.id===ventaId);
@@ -1740,7 +2233,8 @@ function mostrarFactura(ventaId){
 
 function renderFacturas(){
   const cont = document.getElementById('lista-facturas');
-  const ventasOrdenadas = DB.ventas.slice().sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,20);
+  const limite = filtroFechaActivo('facturas') ? 200 : 20;
+  const ventasOrdenadas = DB.ventas.filter(v=>enRangoFecha(v.fecha,'facturas')).sort((a,b)=> new Date(b.fecha) - new Date(a.fecha)).slice(0,limite);
   if(ventasOrdenadas.length===0){
     cont.innerHTML = '<div class="empty-state">Aún no has registrado facturas</div>';
     return;
@@ -1756,7 +2250,7 @@ function renderFacturas(){
         <span class="li-value">${money(v.total)}</span>
         <div style="display:flex;gap:6px;">
           <button data-accion="ver-factura" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Ver</button>
-          ${v.anulada ? '' : `<button data-accion="anular-factura" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Anular</button>`}
+          ${(!v.anulada && esAdmin()) ? `<button data-accion="anular-factura" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Anular</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -1813,17 +2307,20 @@ function renderKardex(){
     return;
   }
   let saldo = 0;
-  cont.innerHTML = movimientos.map(m=>{
+  const filas = [];
+  movimientos.forEach(m=>{
     saldo += m.cantidad;
+    if(!enRangoFecha(m.fecha,'kardex')) return;
     const signo = m.cantidad>=0 ? '+' : '';
-    return `<div class="list-item">
+    filas.push(`<div class="list-item">
       <div class="li-main">
         <span class="li-title">${m.tipo} — ${escapeHtml(m.documento)}</span>
         <span class="li-sub">${fmtDateTime(m.fecha)}</span>
       </div>
       <span class="li-value ${m.cantidad<0?'neg':''}">${signo}${m.cantidad} · Saldo: ${saldo}</span>
-    </div>`;
-  }).join('');
+    </div>`);
+  });
+  cont.innerHTML = filas.length ? filas.join('') : '<div class="empty-state">Sin movimientos en el rango de fechas seleccionado</div>';
 }
 document.getElementById('kardex-producto').addEventListener('change', renderKardex);
 
@@ -1842,7 +2339,9 @@ function renderPerfil(){
   document.getElementById('pf-rango-hasta').value = DB.negocio.rangoHasta||'';
   document.getElementById('pf-ciiu').value = DB.negocio.ciiu||'';
   document.getElementById('pf-agente-iva').value = DB.negocio.agenteIva||'No';
-  document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada con el celular ${emailToTelefono(currentUser.email)}` : '';
+  const rolTxt = rolActual==='empleado' ? ' · Rol: Empleado' : ' · Rol: Administrador';
+  document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada con el celular ${emailToTelefono(currentUser.email)}${rolTxt}` : '';
+  renderEmpleados();
 }
 
 /* ================= CAMBIOS EN EL SISTEMA ================= */
@@ -1852,7 +2351,12 @@ function renderCambios(){
     cont.innerHTML = '<div class="empty-state">Todavía no hay cambios registrados</div>';
     return;
   }
-  cont.innerHTML = DB.cambios.map(c=>`<div class="list-item">
+  const filtrados = DB.cambios.filter(c=>enRangoFecha(c.fecha,'cambios'));
+  if(filtrados.length===0){
+    cont.innerHTML = '<div class="empty-state">Sin cambios en el rango de fechas seleccionado</div>';
+    return;
+  }
+  cont.innerHTML = filtrados.map(c=>`<div class="list-item">
       <div class="li-main">
         <span class="li-title">${escapeHtml(c.modulo)} · ${escapeHtml(c.accion)}</span>
         <span class="li-sub">${escapeHtml(c.descripcion)}</span>
@@ -1939,16 +2443,36 @@ onAuthStateChanged(auth, async (user)=>{
   if(user){
     currentUser = user;
     showView('view-cargando');
-    DB = await loadUserDB(user.uid);
+
+    // ¿Esta cuenta es una invitación de empleado? Si existe accesos/{uid}, trabaja
+    // sobre el negocio del administrador que lo invitó en lugar de crear uno propio.
+    let acceso = null;
+    try{
+      const accesoSnap = await getDoc(doc(db, 'accesos', user.uid));
+      if(accesoSnap.exists()) acceso = accesoSnap.data();
+    }catch(e){ /* sin acceso a la colección o sin conexión: se asume cuenta propia */ }
+
+    negocioId = acceso ? acceso.negocioId : user.uid;
+    rolActual = acceso ? (acceso.rol || 'empleado') : 'admin';
+    document.body.classList.toggle('rol-empleado', rolActual==='empleado');
+
+    DB = await loadUserDB(negocioId);
     if(DB.negocio){
       showView('app');
       switchView(currentView);
+    } else if(acceso){
+      // el negocio del administrador todavía no tiene onboarding hecho (caso raro)
+      toast('Esta cuenta de empleado aún no tiene un negocio configurado ⚠️');
+      await signOut(auth);
     } else {
       showView('view-onboarding');
     }
   } else {
     currentUser = null;
     DB = null;
+    negocioId = null;
+    rolActual = 'admin';
+    document.body.classList.remove('rol-empleado');
     showView('view-login');
   }
 });

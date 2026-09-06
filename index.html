@@ -190,8 +190,9 @@
         </div>
 
         <div id="tab-productos" class="tab-panel">
-          <input type="text" id="buscar-producto" class="search-input" placeholder="🔍 Buscar por nombre o código/SKU...">
+          <input type="text" id="buscar-producto" class="search-input" placeholder="🔍 Buscar por nombre, SKU o código de barras...">
           <button class="btn btn-primary btn-block" data-open="producto">+ Agregar producto</button>
+          <button class="btn btn-secondary btn-block" id="btn-codigos-barras">🏷️ Ver/imprimir códigos de barras</button>
           <div id="lista-productos" class="list"></div>
         </div>
 
@@ -221,6 +222,11 @@
         </div>
         <h3 class="section-title">Movimientos (Kardex)</h3>
         <p style="font-size:11px;color:var(--gris-texto);">Aquí verás las entradas (compras), salidas (ventas) y ajustes registrados desde que empezaste a usar este módulo.</p>
+        <div class="date-filter">
+          <label>Desde <input type="date" id="kardex-desde"></label>
+          <label>Hasta <input type="date" id="kardex-hasta"></label>
+          <button type="button" class="btn btn-secondary" id="kardex-limpiar">Limpiar</button>
+        </div>
         <div id="kardex-lista" class="list"></div>
       </section>
 
@@ -231,17 +237,38 @@
           <button class="tab active" data-tab="cobrar">🧾 Por cobrar</button>
           <button class="tab" data-tab="pagar">🧾 Por pagar</button>
           <button class="tab" data-tab="cartera">📊 Cartera</button>
+          <button class="tab" data-tab="resumen">📋 Resumen</button>
         </div>
 
         <div id="tab-cobrar" class="tab-panel">
+          <div class="date-filter">
+            <label>Desde <input type="date" id="porcobrar-desde"></label>
+            <label>Hasta <input type="date" id="porcobrar-hasta"></label>
+            <button type="button" class="btn btn-secondary" id="porcobrar-limpiar">Limpiar</button>
+          </div>
           <div id="lista-deudores" class="list"></div>
           <h3 class="section-title">✅ Cobros recientes</h3>
+          <div class="date-filter">
+            <label>Desde <input type="date" id="cobros-desde"></label>
+            <label>Hasta <input type="date" id="cobros-hasta"></label>
+            <button type="button" class="btn btn-secondary" id="cobros-limpiar">Limpiar</button>
+          </div>
           <div id="lista-cobros-pagados" class="list"></div>
         </div>
 
         <div id="tab-pagar" class="tab-panel" hidden>
+          <div class="date-filter">
+            <label>Desde <input type="date" id="porpagar-desde"></label>
+            <label>Hasta <input type="date" id="porpagar-hasta"></label>
+            <button type="button" class="btn btn-secondary" id="porpagar-limpiar">Limpiar</button>
+          </div>
           <div id="lista-por-pagar" class="list"></div>
           <h3 class="section-title">✅ Pagos recientes</h3>
+          <div class="date-filter">
+            <label>Desde <input type="date" id="pagosprov-desde"></label>
+            <label>Hasta <input type="date" id="pagosprov-hasta"></label>
+            <button type="button" class="btn btn-secondary" id="pagosprov-limpiar">Limpiar</button>
+          </div>
           <div id="lista-pagos-realizados" class="list"></div>
         </div>
 
@@ -253,6 +280,25 @@
           </div>
           <h3 class="section-title">Clientes con cartera vencida</h3>
           <div id="lista-cartera-vencida" class="list"></div>
+        </div>
+
+        <div id="tab-resumen" class="tab-panel" hidden>
+          <p style="font-size:12px;">Resumen tipo Excel de lo pendiente por cobrar y por pagar, con subtotales por cliente y por proveedor.</p>
+          <div class="date-filter">
+            <label>Desde <input type="date" id="resumen-desde"></label>
+            <label>Hasta <input type="date" id="resumen-hasta"></label>
+            <button type="button" class="btn btn-secondary" id="resumen-limpiar">Limpiar</button>
+          </div>
+          <div class="resumen-grid">
+            <div>
+              <h3 class="section-title">🧾 Por cobrar — por cliente</h3>
+              <div id="tabla-resumen-cobrar"></div>
+            </div>
+            <div>
+              <h3 class="section-title">🧾 Por pagar — por proveedor</h3>
+              <div id="tabla-resumen-pagar"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -303,7 +349,29 @@
 
         <button class="btn btn-secondary btn-block" id="btn-cierre-caja">📋 Cierre de caja de hoy</button>
 
+        <h3 class="section-title">📅 Historial mensual</h3>
+        <p style="font-size:12px;">Ventas, gastos, compras y clientes/proveedores nuevos, mes a mes.</p>
+        <div class="date-filter">
+          <label>Desde <input type="date" id="historial-desde"></label>
+          <label>Hasta <input type="date" id="historial-hasta"></label>
+          <button type="button" class="btn btn-secondary" id="historial-limpiar">Limpiar</button>
+        </div>
+        <div id="tabla-historial-mensual"></div>
+
+        <h3 class="section-title">📄 Informe mensual detallado</h3>
+        <p style="font-size:12px;">Ventas, pagos y gastos del período, factura por factura (sin consolidar).</p>
+        <div class="date-filter">
+          <label>Desde <input type="date" id="informe-desde"></label>
+          <label>Hasta <input type="date" id="informe-hasta"></label>
+        </div>
+        <button class="btn btn-primary btn-block" id="btn-ver-informe">📄 Ver informe detallado</button>
+
         <h3 class="section-title">🧾 Facturas recientes</h3>
+        <div class="date-filter">
+          <label>Desde <input type="date" id="facturas-desde"></label>
+          <label>Hasta <input type="date" id="facturas-hasta"></label>
+          <button type="button" class="btn btn-secondary" id="facturas-limpiar">Limpiar</button>
+        </div>
         <div class="master-detail">
           <div id="lista-facturas" class="list"></div>
           <div class="detail-panel" id="factura-detalle-panel">
@@ -312,9 +380,19 @@
         </div>
 
         <h3 class="section-title">🧾 Gastos recientes</h3>
+        <div class="date-filter">
+          <label>Desde <input type="date" id="gastos-desde"></label>
+          <label>Hasta <input type="date" id="gastos-hasta"></label>
+          <button type="button" class="btn btn-secondary" id="gastos-limpiar">Limpiar</button>
+        </div>
         <div id="lista-gastos" class="list"></div>
 
         <h3 class="section-title">🧾 Compras recientes</h3>
+        <div class="date-filter">
+          <label>Desde <input type="date" id="compras-desde"></label>
+          <label>Hasta <input type="date" id="compras-hasta"></label>
+          <button type="button" class="btn btn-secondary" id="compras-limpiar">Limpiar</button>
+        </div>
         <div class="master-detail">
           <div id="lista-compras" class="list"></div>
           <div class="detail-panel" id="compra-detalle-panel">
@@ -327,7 +405,7 @@
       <section id="view-perfil" class="view" hidden>
         <h2>Perfil</h2>
 
-        <div class="profile-card">
+        <div class="profile-card solo-admin">
           <h3>Datos del negocio</h3>
           <label>Tu nombre (para saludarte)
             <input type="text" id="pf-propietario">
@@ -355,7 +433,7 @@
           <button class="btn btn-primary btn-block" id="btn-guardar-perfil">Guardar cambios</button>
         </div>
 
-        <div class="profile-card">
+        <div class="profile-card solo-admin">
           <h3>🧾 Datos de facturación</h3>
           <p style="font-size:12px;">Estos datos aparecen en el comprobante de venta. Si aún no tienes tu resolución de la DIAN, deja ese campo vacío y complétalo cuando la tramites.</p>
           <label>NIT del negocio
@@ -388,6 +466,13 @@
           <button class="btn btn-primary btn-block" id="btn-guardar-facturacion">Guardar datos de facturación</button>
         </div>
 
+        <div class="profile-card solo-admin">
+          <h3>👥 Empleados</h3>
+          <p>Da acceso a tus empleados para que registren ventas, gastos y compras sin ver ni cambiar la configuración del negocio.</p>
+          <div id="lista-empleados"></div>
+          <button class="btn btn-secondary btn-block" data-open="empleado">+ Agregar empleado</button>
+        </div>
+
         <div class="profile-card">
           <h3>🔄 Actualizar la app</h3>
           <p>Si acabas de recibir una mejora y no la ves reflejada, toca este botón para refrescar la app a la última versión.</p>
@@ -411,7 +496,7 @@
           <button class="btn btn-secondary btn-block" id="btn-ver-cambios">Ver historial de cambios</button>
         </div>
 
-        <div class="profile-card">
+        <div class="profile-card solo-admin">
           <h3>🛟 Respaldo de tu información</h3>
           <p>Guarda una copia de tus datos o recupérala en otro celular.</p>
           <button class="btn btn-secondary btn-block" id="btn-exportar">⬇️ Descargar respaldo</button>
@@ -436,6 +521,11 @@
         <button class="btn btn-secondary" id="btn-volver-perfil" style="align-self:flex-start;padding:6px 14px;font-size:12px;">← Volver a Perfil</button>
         <h2>Cambios en el Sistema</h2>
         <p class="subtitle">Historial de acciones registradas en tu negocio</p>
+        <div class="date-filter">
+          <label>Desde <input type="date" id="cambios-desde"></label>
+          <label>Hasta <input type="date" id="cambios-hasta"></label>
+          <button type="button" class="btn btn-secondary" id="cambios-limpiar">Limpiar</button>
+        </div>
         <div id="lista-cambios" class="list"></div>
       </section>
 
@@ -544,9 +634,14 @@
       <div class="modal-header"><h3>💰 Registrar venta</h3><button class="modal-close">✕</button></div>
 
       <div class="item-form">
-        <label>Cliente (opcional, obligatorio si es a crédito)
-          <select id="v-cliente"><option value="">— Sin cliente —</option></select>
+        <label class="full-w">Cliente — busca por cédula/NIT o nombre (opcional; obligatorio si es a crédito)
+          <input type="text" id="v-buscar-cliente" placeholder="Cédula, NIT o nombre — Enter para buscar (vacío = sin cliente)">
         </label>
+        <div class="selector-resultado full-w" id="v-cliente-resultado" hidden>
+          <span class="selector-resultado-texto"></span>
+          <button type="button" class="link-btn" id="v-cliente-quitar">Cambiar</button>
+        </div>
+        <select id="v-cliente" hidden><option value="">— Sin cliente —</option></select>
         <label>Tipo de venta
           <select id="v-tipo">
             <option value="contado">Contado</option>
@@ -567,6 +662,9 @@
       </div>
 
       <div class="item-form">
+        <label class="full-w">Escanear o buscar producto (código de barras, SKU o nombre)
+          <input type="text" id="v-buscar-producto" placeholder="📷 Escanea o escribe y presiona Enter">
+        </label>
         <label>Producto o servicio
           <select id="v-producto"><option value="">— Sin producto (servicio libre) —</option></select>
         </label>
@@ -608,9 +706,14 @@
       <div class="modal-header"><h3 id="compra-modal-titulo">🧾 Registrar compra</h3><button class="modal-close">✕</button></div>
 
       <div class="item-form">
-        <label>Proveedor
-          <select id="co-proveedor" required><option value="">— Elige un proveedor —</option></select>
+        <label class="full-w">Proveedor — busca por NIT/cédula o nombre
+          <input type="text" id="co-buscar-proveedor" placeholder="NIT, cédula o nombre — Enter para buscar">
         </label>
+        <div class="selector-resultado full-w" id="co-proveedor-resultado" hidden>
+          <span class="selector-resultado-texto"></span>
+          <button type="button" class="link-btn" id="co-proveedor-quitar">Cambiar</button>
+        </div>
+        <select id="co-proveedor" hidden><option value="">— Elige un proveedor —</option></select>
         <label>N.° de factura del proveedor (opcional)
           <input type="text" id="co-numero-factura" placeholder="Ej: FV-00123">
         </label>
@@ -627,6 +730,9 @@
       </div>
 
       <div class="item-form">
+        <label class="full-w">Escanear o buscar producto (código de barras, SKU o nombre)
+          <input type="text" id="co-buscar-producto" placeholder="📷 Escanea o escribe y presiona Enter">
+        </label>
         <label>Producto
           <select id="co-producto"><option value="">— Elige un producto —</option></select>
         </label>
@@ -717,6 +823,9 @@
         </label>
         <label>Código / SKU (opcional)
           <input type="text" id="p-sku" placeholder="Ej: PROD-001">
+        </label>
+        <label>Código de barras (opcional)
+          <input type="text" id="p-codigo-barras" placeholder="Escanea o escribe el código de barras">
         </label>
         <label>Categoría
           <input type="text" id="p-categoria" list="lista-categorias" placeholder="Ej: Alimentos, Ropa, Tecnología...">
@@ -905,6 +1014,33 @@
           <input type="number" id="m-valor" min="0" step="0.01" required>
         </label>
         <button type="submit" class="btn btn-primary btn-block btn-lg">Guardar meta</button>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-empleado" hidden>
+      <div class="modal-header"><h3>👥 Agregar empleado</h3><button class="modal-close">✕</button></div>
+      <form id="form-empleado">
+        <label>Nombre del empleado
+          <input type="text" id="emp-nombre" required>
+        </label>
+        <label>Número de identificación
+          <input type="text" id="emp-identificacion" placeholder="Cédula del empleado">
+        </label>
+        <label>Dirección
+          <input type="text" id="emp-direccion" placeholder="Dirección de residencia">
+        </label>
+        <label>Número de celular (con este entra a la app)
+          <div class="phone-input">
+            <span class="phone-prefix">+57</span>
+            <input type="tel" id="emp-telefono" inputmode="numeric" placeholder="3001234567" maxlength="10" required>
+          </div>
+        </label>
+        <label>Contraseña de acceso (6 dígitos)
+          <input type="password" id="emp-clave" inputmode="numeric" pattern="\d{6}" maxlength="6" required>
+        </label>
+        <p style="font-size:12px;">El empleado podrá iniciar sesión con este celular y contraseña, y ver los datos de tu negocio, pero no podrá editar la configuración, eliminar registros ni descargar respaldos.</p>
+        <p class="form-error" id="emp-error" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="emp-submit-btn">Agregar empleado</button>
       </form>
     </div>
 

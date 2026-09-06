@@ -324,6 +324,47 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   padding:10px 14px;border-radius:10px;font-weight:700;
 }
 
+/* filtro de fecha reutilizable */
+.date-filter{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:10px 0 4px;}
+.date-filter label{font-size:11px;gap:4px;flex:1 1 110px;min-width:0;}
+.date-filter input{padding:9px 10px;font-size:13px;width:100%;min-width:0;}
+.date-filter button{padding:9px 12px;font-size:12px;white-space:nowrap;flex:0 0 auto;}
+
+/* tablas estilo Excel (resúmenes) */
+.data-table-wrap{overflow-x:auto;margin-top:12px;background:#fff;border-radius:14px;box-shadow:var(--sombra);}
+.data-table{width:100%;border-collapse:collapse;font-size:13px;min-width:420px;}
+.data-table th,.data-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--borde);white-space:nowrap;}
+.data-table th{background:var(--gris-fondo);color:var(--gris-texto);font-size:11px;text-transform:uppercase;letter-spacing:.02em;}
+.data-table td.num,.data-table th.num{text-align:right;}
+.data-table tr.total-row td{font-weight:800;background:var(--gris-fondo);border-top:2px solid var(--azul);}
+.data-table tr.total-row td.neg{color:#d9534f;}
+
+/* informe mensual detallado */
+.informe-resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-top:10px;}
+.informe-resumen .card{gap:2px;}
+.informe-bloque{margin-top:18px;}
+.informe-bloque h4{font-size:13px;margin:0 0 6px;color:var(--azul);}
+.informe-subtotal{display:flex;justify-content:space-between;font-weight:700;font-size:13px;background:var(--gris-fondo);border-radius:10px;padding:8px 12px;margin-top:6px;}
+
+/* empleados / roles */
+.empleado-row{display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:12px;padding:10px 14px;box-shadow:var(--sombra);margin-top:8px;}
+.rol-tag{display:inline-block;background:rgba(22,65,107,0.12);color:var(--azul-claro);border-radius:20px;padding:2px 10px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle;}
+.rol-tag.rol-admin{background:rgba(40,180,99,0.16);color:var(--verde-oscuro);}
+.rol-empleado .solo-admin{display:none !important;}
+
+/* resultado de búsqueda por cédula/NIT (cliente/proveedor) */
+.selector-resultado{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--gris-fondo);border-radius:12px;padding:12px 14px;font-size:13px;font-weight:700;color:var(--azul);}
+
+/* etiquetas de código de barras (imprimibles) */
+.etiquetas-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;}
+.etiqueta{border:1px dashed #888;border-radius:4px;padding:8px 6px;text-align:center;}
+.etiqueta-codigo{font-family:"Courier New",monospace;font-weight:800;font-size:14px;letter-spacing:1px;}
+.etiqueta-nombre{font-size:10px;margin-top:4px;word-break:break-word;}
+@media print{
+  .etiquetas-grid{grid-template-columns:repeat(4,1fr);}
+  .etiqueta{color:#111;border-color:#333;}
+}
+
 /* toast */
 .toast{
   position:fixed;bottom:110px;left:50%;transform:translateX(-50%);
@@ -375,11 +416,29 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   .bottom-nav [data-view="aprenda"]{order:8;}
 
   .modal-backdrop{align-items:center;}
-  .modal{width:100%;max-width:560px;border-radius:20px;max-height:85vh;}
+  .modal{width:100%;max-width:760px;border-radius:20px;max-height:92vh;}
+  .modal.modal-detail{max-width:920px;}
+
+  /* formularios de los modales en 2 columnas para que quepa todo sin tener que desplazarse tanto */
+  .item-form,
+  .modal form{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+  .item-form > .item-form-row,
+  .item-form > button,
+  .item-form > p,
+  .modal form > .item-form-row,
+  .modal form > button,
+  .modal form > p,
+  .modal form > .modal-total,
+  .modal form > .cierre-line,
+  .item-form > .full-w,
+  .modal form > .full-w{
+    grid-column:1 / -1;
+  }
 
   .cards-grid{grid-template-columns:repeat(4,1fr);}
   .quick-actions{grid-template-columns:repeat(4,1fr);}
   .register-grid{grid-template-columns:repeat(3,1fr);}
+  .resumen-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
 
   /* vista maestro-detalle: lista a la izquierda, detalle a la derecha */
   .master-detail{display:grid;grid-template-columns:1fr 1.2fr;gap:16px;align-items:start;}
@@ -395,15 +454,20 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 
 @media (prefers-color-scheme: dark){
   html,body{background:#0b1620;color:#eef2f5;}
-  .card,.list-item,.finance-row,.profile-card,.onboarding-card,.bar-chart,.goal-item,.modal,.bottom-nav,.period-tab,.tab,.learn-item,.video-link,.action-card,.detail-panel{
+  .card,.list-item,.finance-row,.profile-card,.onboarding-card,.bar-chart,.goal-item,.modal,.bottom-nav,.period-tab,.tab,.learn-item,.video-link,.action-card,.detail-panel,.data-table-wrap,.empleado-row{
     background:#132434;color:#eef2f5;
   }
+  .data-table th{background:#0e1c2a;color:#9fb0bd;}
+  .data-table td{border-color:#22394d;}
+  .data-table tr.total-row td{background:#0e1c2a;}
+  .informe-subtotal{background:#0e1c2a;}
   .learn-item summary,.video-title,.action-label{color:#eef2f5;}
   #app{background:#0b1620;}
   input,select,textarea{background:#0e1c2a;color:#eef2f5;border-color:#22394d;}
   .phone-prefix{background:#0e1c2a;color:#9fb0bd;border-color:#22394d;}
   .info-box{background:#0e2436;color:#9fc4e0;}
   .cierre-col{background:#0e1c2a;}
+  .selector-resultado{background:#0e1c2a;color:#eef2f5;}
   .finance-total{background:var(--azul);}
   p{color:#9fb0bd;}
 }
