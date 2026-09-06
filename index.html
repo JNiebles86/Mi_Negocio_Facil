@@ -173,7 +173,7 @@
         <div class="quick-actions">
           <button class="action-card" data-open="venta"><span class="action-icon icon-green">➕</span><span class="action-label">Registrar venta</span></button>
           <button class="action-card" data-open="gasto"><span class="action-icon icon-yellow">🧾</span><span class="action-label">Registrar gasto</span></button>
-          <button class="action-card" data-open="producto"><span class="action-icon icon-dark">📦</span><span class="action-label">Agregar producto</span></button>
+          <button class="action-card solo-admin" data-open="producto"><span class="action-icon icon-dark">📦</span><span class="action-label">Agregar producto</span></button>
           <button class="action-card" data-open="cliente"><span class="action-icon icon-blue">👥</span><span class="action-label">Agregar cliente</span></button>
         </div>
 
@@ -191,7 +191,7 @@
 
         <div id="tab-productos" class="tab-panel">
           <input type="text" id="buscar-producto" class="search-input" placeholder="🔍 Buscar por nombre, SKU o código de barras...">
-          <button class="btn btn-primary btn-block" data-open="producto">+ Agregar producto</button>
+          <button class="btn btn-primary btn-block solo-admin" data-open="producto">+ Agregar producto</button>
           <button class="btn btn-secondary btn-block" id="btn-codigos-barras">🏷️ Ver/imprimir códigos de barras</button>
           <div id="lista-productos" class="list"></div>
         </div>

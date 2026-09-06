@@ -414,6 +414,7 @@ function generarCodigoBarras(){
 document.getElementById('form-producto').addEventListener('submit', (e)=>{
   e.preventDefault();
   const id = document.getElementById('p-id').value;
+  if(!id && !esAdmin()){ toast('Solo el administrador puede crear productos nuevos ⚠️'); return; }
   const existente = id ? DB.productos.find(p=>p.id===id) : null;
   const codigoIngresado = document.getElementById('p-codigo-barras').value.trim();
   const datos = {
@@ -430,6 +431,10 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
     proveedorId: document.getElementById('p-proveedor').value || null,
     estado: document.getElementById('p-estado').value
   };
+  if(yaExisteEnLista(DB.productos, id, 'nombre', datos.nombre)){
+    toast('Ya existe un producto con ese nombre ⚠️');
+    return;
+  }
   if(id){
     const producto = DB.productos.find(p=>p.id===id);
     if(producto) Object.assign(producto, datos);
@@ -522,6 +527,10 @@ document.getElementById('form-cliente').addEventListener('submit', (e)=>{
     correo: document.getElementById('c-correo').value.trim(),
     estado: document.getElementById('c-estado').value
   };
+  if(yaExisteEnLista(DB.clientes, id, 'numeroIdentificacion', datos.numeroIdentificacion)){
+    toast('Ya existe un cliente con ese número de identificación ⚠️');
+    return;
+  }
   if(id){
     const cliente = DB.clientes.find(c=>c.id===id);
     if(cliente) Object.assign(cliente, datos);
@@ -599,6 +608,10 @@ document.getElementById('form-proveedor').addEventListener('submit', (e)=>{
     correo: document.getElementById('pr-correo').value.trim(),
     estado: document.getElementById('pr-estado').value
   };
+  if(yaExisteEnLista(DB.proveedores, id, 'numeroIdentificacion', datos.numeroIdentificacion)){
+    toast('Ya existe un proveedor con ese número de identificación ⚠️');
+    return;
+  }
   if(id){
     const proveedor = DB.proveedores.find(p=>p.id===id);
     if(proveedor) Object.assign(proveedor, datos);
@@ -1610,6 +1623,12 @@ function escapeHtml(s){
 }
 function normalizarTexto(s){
   return String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+}
+function yaExisteEnLista(lista, idActual, campo, valor){
+  const v = (valor||'').trim();
+  if(!v) return false;
+  const vNorm = normalizarTexto(v);
+  return lista.some(x => x.id !== idActual && normalizarTexto((x[campo]||'').trim()) === vNorm);
 }
 
 function ventasDelPeriodo(period){
