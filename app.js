@@ -391,7 +391,6 @@ function abrirModalProducto(producto){
   document.getElementById('p-codigo-barras').value = producto?.codigoBarras || '';
   document.getElementById('p-categoria').value = producto?.categoria || '';
   document.getElementById('p-unidad').value = producto?.unidadMedida || '';
-  document.getElementById('p-cantidad').value = producto?.cantidad ?? 0;
   document.getElementById('p-compra').value = producto?.precioCompra ?? 0;
   document.getElementById('p-venta').value = producto?.precioVenta ?? '';
   document.getElementById('p-iva').value = producto?.ivaPct ?? 19;
@@ -423,7 +422,6 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
     codigoBarras: codigoIngresado || existente?.codigoBarras || generarCodigoBarras(),
     categoria: document.getElementById('p-categoria').value.trim(),
     unidadMedida: document.getElementById('p-unidad').value.trim(),
-    cantidad: Number(document.getElementById('p-cantidad').value)||0,
     precioCompra: Number(document.getElementById('p-compra').value)||0,
     precioVenta: Number(document.getElementById('p-venta').value)||0,
     ivaPct: Number(document.getElementById('p-iva').value)||0,
@@ -440,7 +438,7 @@ document.getElementById('form-producto').addEventListener('submit', (e)=>{
     if(producto) Object.assign(producto, datos);
     registrarCambio('Producto', 'Editar', `Editó el producto "${datos.nombre}"`);
   } else {
-    DB.productos.push({ id: uid(), ...datos });
+    DB.productos.push({ id: uid(), cantidad: 0, ...datos });
     registrarCambio('Producto', 'Crear', `Registró el producto "${datos.nombre}"`);
   }
   saveDB();
@@ -1712,7 +1710,7 @@ function abrirCodigosBarras(){
   const etiquetasHtml = productos.length ? `
     <div class="etiquetas-grid">
       ${productos.map(p=>`<div class="etiqueta">
-        <div class="etiqueta-codigo">${escapeHtml(p.codigoBarras)}</div>
+        <svg class="etiqueta-barra" data-codigo="${escapeHtml(p.codigoBarras)}"></svg>
         <div class="etiqueta-nombre">${escapeHtml(p.nombre)}</div>
       </div>`).join('')}
     </div>` : '';
@@ -1720,12 +1718,21 @@ function abrirCodigosBarras(){
   document.getElementById('detalle-titulo').textContent = '🏷️ Códigos de tus productos';
   document.getElementById('detalle-body').innerHTML = `
     <button type="button" class="btn btn-secondary btn-block no-print" onclick="window.print()">🖨️ Imprimir etiquetas / Guardar PDF</button>
-    <p class="no-print" style="font-size:12px;">Cada producto nuevo recibe un código automáticamente si no le pusiste uno. Abajo tienes la lista para consultar en pantalla; más abajo, las etiquetas listas para imprimir, recortar y pegar en cada producto (al imprimir solo salen las etiquetas).</p>
     <h4 class="no-print" style="margin-top:14px;font-size:13px;color:var(--azul);">📋 Lista de códigos</h4>
     ${tablaHtml}
-    <h4 style="margin-top:18px;font-size:13px;color:var(--azul);">✂️ Etiquetas para imprimir y recortar</h4>
     ${etiquetasHtml}
   `;
+  if(typeof JsBarcode !== 'undefined'){
+    document.querySelectorAll('.etiqueta-barra').forEach(svg=>{
+      try{
+        JsBarcode(svg, svg.dataset.codigo, { format:'CODE128', displayValue:true, fontSize:12, height:38, margin:4 });
+      }catch(e){ svg.outerHTML = `<div class="etiqueta-codigo">${escapeHtml(svg.dataset.codigo)}</div>`; }
+    });
+  } else {
+    document.querySelectorAll('.etiqueta-barra').forEach(svg=>{
+      svg.outerHTML = `<div class="etiqueta-codigo">${escapeHtml(svg.dataset.codigo)}</div>`;
+    });
+  }
   openModal('detalle');
 }
 document.getElementById('btn-codigos-barras').addEventListener('click', abrirCodigosBarras);

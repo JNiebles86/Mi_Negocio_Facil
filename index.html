@@ -858,9 +858,7 @@
             <option value="Litro">
           </datalist>
         </label>
-        <label>Cantidad disponible
-          <input type="number" id="p-cantidad" min="0" value="0" required>
-        </label>
+        <p class="info-box full-w">La cantidad disponible no se ingresa aquí: se registra mediante una compra a un proveedor o un ajuste de inventario.</p>
         <label>Precio de compra
           <input type="number" id="p-compra" min="0" step="0.01" value="0">
         </label>
@@ -1053,6 +1051,7 @@
 
   <div id="toast" class="toast" hidden></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
