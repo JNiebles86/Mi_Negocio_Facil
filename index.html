@@ -166,6 +166,7 @@
             <span class="card-icon">📦</span>
             <span class="card-label">Inventario</span>
             <span class="card-value" id="kpi-inventario">0</span>
+            <span class="card-sub" id="kpi-inventario-valor"></span>
           </div>
         </div>
 
@@ -192,6 +193,7 @@
         <div id="tab-productos" class="tab-panel">
           <input type="text" id="buscar-producto" class="search-input" placeholder="🔍 Buscar por nombre, SKU o código de barras...">
           <button class="btn btn-primary btn-block solo-admin" data-open="producto">+ Agregar producto</button>
+          <p id="productos-contador" style="font-size:13px;font-weight:700;color:var(--azul);margin:2px 0 0;"></p>
           <button class="btn btn-secondary btn-block" id="btn-codigos-barras">🏷️ Ver/imprimir códigos de barras</button>
           <div id="lista-productos" class="list"></div>
         </div>
@@ -213,6 +215,12 @@
       <!-- INVENTARIO -->
       <section id="view-inventario" class="view" hidden>
         <h2>Inventario</h2>
+
+        <h3 class="section-title">📋 Lista de productos</h3>
+        <input type="text" id="buscar-inventario" class="search-input" placeholder="🔍 Buscar por nombre, SKU o categoría...">
+        <div id="tabla-inventario"></div>
+
+        <h3 class="section-title">Kardex por producto</h3>
         <label>Producto
           <select id="kardex-producto"></select>
         </label>
@@ -337,6 +345,17 @@
             <strong id="fin-gano">$0</strong>
           </div>
         </div>
+
+        <h3 class="section-title">💰 Valor del inventario (hoy)</h3>
+        <p style="font-size:12px;">Cuánto tienes invertido en existencias (a precio de costo) y cuánto valen si las vendes todas (a precio de venta), al día de hoy.</p>
+        <div class="finance-rows">
+          <div class="finance-row"><span>💵 Valor en costo</span><strong id="inv-valor-costo">$0</strong></div>
+          <div class="finance-row finance-total"><span>💰 Valor en venta</span><strong id="inv-valor-venta">$0</strong></div>
+        </div>
+        <h4 style="font-size:13px;color:var(--azul);margin-top:14px;">Por categoría</h4>
+        <div id="inv-valor-categorias"></div>
+        <h4 style="font-size:13px;color:var(--azul);margin-top:14px;">Por producto</h4>
+        <div id="inv-valor-productos"></div>
 
         <h3 class="section-title">Ventas de los últimos 7 días</h3>
         <div id="chart-semana" class="bar-chart"></div>

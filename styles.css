@@ -115,6 +115,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .card-icon{font-size:20px;}
 .card-label{font-size:12px;color:var(--gris-texto);font-weight:600;}
 .card-value{font-size:18px;font-weight:800;color:var(--azul);}
+.card-sub{font-size:11px;color:var(--gris-texto);font-weight:600;}
 .card-green{border-left-color:var(--verde);}
 .card-yellow{border-left-color:var(--amarillo);}
 .card-blue{border-left-color:var(--azul-claro);}
@@ -336,6 +337,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
 .data-table th,.data-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--borde);white-space:nowrap;}
 .data-table th{background:var(--gris-fondo);color:var(--gris-texto);font-size:11px;text-transform:uppercase;letter-spacing:.02em;}
 .data-table td.num,.data-table th.num{text-align:right;}
+.data-table td.neg{color:#d9534f;font-weight:700;}
 .data-table tr.total-row td{font-weight:800;background:var(--gris-fondo);border-top:2px solid var(--azul);}
 .data-table tr.total-row td.neg{color:#d9534f;}
 

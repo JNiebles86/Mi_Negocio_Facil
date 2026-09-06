@@ -1647,6 +1647,7 @@ function renderInicio(){
   document.getElementById('kpi-gastos').textContent = money(totalGastos);
   document.getElementById('kpi-ganancia').textContent = money(totalVentas-totalGastos);
   document.getElementById('kpi-inventario').textContent = DB.productos.reduce((a,p)=>a+p.cantidad,0);
+  document.getElementById('kpi-inventario-valor').textContent = `Valor en venta: ${money(DB.productos.reduce((a,p)=>a+p.cantidad*p.precioVenta,0))}`;
 
   const nombre = (DB.negocio?.propietario || '').trim();
   document.getElementById('saludo').textContent = `¡Hola${nombre ? ', '+nombre.split(' ')[0] : ''}! 👋`;
@@ -1659,6 +1660,7 @@ function renderInicio(){
 
 function renderProductos(){
   const cont = document.getElementById('lista-productos');
+  document.getElementById('productos-contador').textContent = `📦 Tienes ${DB.productos.length} producto(s) registrado(s)`;
   if(DB.productos.length===0){
     cont.innerHTML = '<div class="empty-state">Aún no tienes productos. Agrega el primero 📦</div>';
     return;
@@ -1769,6 +1771,9 @@ function renderClientes(){
       <div class="li-main">
         <span class="li-title">${escapeHtml(nombre)}${estado!=='Activo' ? `<span class="badge-estado">${escapeHtml(estado)}</span>` : ''}</span>
         <span class="li-sub">${escapeHtml(c.celular||c.telefono||c.correo||'Sin datos de contacto')}</span>
+        ${c.numeroIdentificacion ? `<span class="li-sub">${escapeHtml(c.tipoIdentificacion||'ID')}: ${escapeHtml(c.numeroIdentificacion)}</span>` : ''}
+        ${(c.direccion||c.ciudad) ? `<span class="li-sub">${[c.direccion,c.ciudad].filter(Boolean).map(escapeHtml).join(', ')}</span>` : ''}
+        ${c.correo && (c.celular||c.telefono) ? `<span class="li-sub">${escapeHtml(c.correo)}</span>` : ''}
         ${c.contacto ? `<span class="li-sub">Contacto: ${escapeHtml(c.contacto)}</span>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
@@ -1806,6 +1811,9 @@ function renderProveedores(){
       <div class="li-main">
         <span class="li-title">${escapeHtml(p.nombre)}${estado!=='Activo' ? `<span class="badge-estado">${escapeHtml(estado)}</span>` : ''}</span>
         <span class="li-sub">${tipoTxt} · ${escapeHtml(p.telefono||p.correo||'Sin datos')}</span>
+        ${p.numeroIdentificacion ? `<span class="li-sub">${escapeHtml(p.tipoIdentificacion||'ID')}: ${escapeHtml(p.numeroIdentificacion)}</span>` : ''}
+        ${(p.direccion||p.ciudad) ? `<span class="li-sub">${[p.direccion,p.ciudad].filter(Boolean).map(escapeHtml).join(', ')}</span>` : ''}
+        ${p.correo && p.telefono ? `<span class="li-sub">${escapeHtml(p.correo)}</span>` : ''}
         ${p.contacto ? `<span class="li-sub">Contacto: ${escapeHtml(p.contacto)}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;">
@@ -1816,7 +1824,46 @@ function renderProveedores(){
   }).join('');
 }
 
+function renderValorInventario(){
+  const contCat = document.getElementById('inv-valor-categorias');
+  if(!contCat) return;
+  const totalCosto = DB.productos.reduce((a,p)=>a+p.cantidad*p.precioCompra,0);
+  const totalVenta = DB.productos.reduce((a,p)=>a+p.cantidad*p.precioVenta,0);
+  document.getElementById('inv-valor-costo').textContent = money(totalCosto);
+  document.getElementById('inv-valor-venta').textContent = money(totalVenta);
+
+  if(DB.productos.length===0){
+    contCat.innerHTML = '<div class="empty-state">Aún no tienes productos registrados</div>';
+    document.getElementById('inv-valor-productos').innerHTML = '';
+    return;
+  }
+
+  const porCategoria = {};
+  DB.productos.forEach(p=>{
+    const cat = p.categoria || 'Sin categoría';
+    if(!porCategoria[cat]) porCategoria[cat] = { productos:0, unidades:0, costo:0, venta:0 };
+    porCategoria[cat].productos++;
+    porCategoria[cat].unidades += p.cantidad;
+    porCategoria[cat].costo += p.cantidad*p.precioCompra;
+    porCategoria[cat].venta += p.cantidad*p.precioVenta;
+  });
+  const filasCat = Object.entries(porCategoria).sort((a,b)=> b[1].venta-a[1].venta);
+  contCat.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Categoría</th><th class="num"># Productos</th><th class="num">Unidades</th><th class="num">Valor costo</th><th class="num">Valor venta</th></tr></thead>
+      <tbody>${filasCat.map(([cat,d])=>`<tr><td>${escapeHtml(cat)}</td><td class="num">${d.productos}</td><td class="num">${d.unidades}</td><td class="num">${money(d.costo)}</td><td class="num">${money(d.venta)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="total-row"><td>TOTAL</td><td class="num">${DB.productos.length}</td><td class="num">${DB.productos.reduce((a,p)=>a+p.cantidad,0)}</td><td class="num">${money(totalCosto)}</td><td class="num">${money(totalVenta)}</td></tr></tfoot>
+    </table></div>`;
+
+  const filasProd = DB.productos.slice().sort((a,b)=> (b.cantidad*b.precioVenta)-(a.cantidad*a.precioVenta));
+  document.getElementById('inv-valor-productos').innerHTML = `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Producto</th><th>Categoría</th><th class="num">Cant.</th><th class="num">Costo unit.</th><th class="num">Valor costo</th><th class="num">Precio venta</th><th class="num">Valor venta</th></tr></thead>
+      <tbody>${filasProd.map(p=>`<tr><td>${escapeHtml(p.nombre)}</td><td>${escapeHtml(p.categoria||'—')}</td><td class="num">${p.cantidad}</td><td class="num">${money(p.precioCompra)}</td><td class="num">${money(p.cantidad*p.precioCompra)}</td><td class="num">${money(p.precioVenta)}</td><td class="num">${money(p.cantidad*p.precioVenta)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="total-row"><td colspan="4">TOTAL</td><td class="num">${money(totalCosto)}</td><td></td><td class="num">${money(totalVenta)}</td></tr></tfoot>
+    </table></div>`;
+}
+
 function renderFinanzas(){
+  renderValorInventario();
   const period = periods.finanzas;
   const vs = ventasDelPeriodo(period);
   const gs = gastosDelPeriodo(period);
@@ -2438,6 +2485,48 @@ document.getElementById('lista-facturas').addEventListener('click', (e)=>{
   if(btn.dataset.accion==='anular-factura') anularVenta(btn.dataset.id);
 });
 
+/* ================= INVENTARIO: LISTA COMPLETA ================= */
+function renderInventarioLista(){
+  const cont = document.getElementById('tabla-inventario');
+  if(!cont) return;
+  if(DB.productos.length===0){
+    cont.innerHTML = '<div class="empty-state">Aún no tienes productos registrados</div>';
+    return;
+  }
+  const filtro = normalizarTexto(document.getElementById('buscar-inventario').value.trim());
+  const lista = filtro
+    ? DB.productos.filter(p=>
+        normalizarTexto(p.nombre||'').includes(filtro) ||
+        normalizarTexto(p.sku||'').includes(filtro) ||
+        normalizarTexto(p.categoria||'').includes(filtro)
+      )
+    : DB.productos;
+  if(lista.length===0){
+    cont.innerHTML = '<div class="empty-state">No se encontraron productos con esa búsqueda 🔍</div>';
+    return;
+  }
+  const totalUnidades = lista.reduce((a,p)=>a+p.cantidad,0);
+  cont.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Producto</th><th>SKU</th><th>Categoría</th><th class="num">Disponible</th><th class="num">Precio venta</th><th class="num">IVA</th><th>Proveedor</th><th>Estado</th></tr></thead>
+      <tbody>${lista.map(p=>{
+        const proveedor = DB.proveedores.find(pr=>pr.id===p.proveedorId);
+        const bajo = p.cantidad <= p.cantidadMinima;
+        return `<tr>
+          <td>${escapeHtml(p.nombre)}</td>
+          <td>${escapeHtml(p.sku||'—')}</td>
+          <td>${escapeHtml(p.categoria||'—')}</td>
+          <td class="num${bajo?' neg':''}">${p.cantidad}</td>
+          <td class="num">${money(p.precioVenta)}</td>
+          <td class="num">${p.ivaPct ?? 0}%</td>
+          <td>${proveedor ? escapeHtml(proveedor.nombre) : '—'}</td>
+          <td>${escapeHtml(p.estado||'Activo')}</td>
+        </tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr class="total-row"><td>TOTAL: ${lista.length} producto(s)</td><td></td><td></td><td class="num">${totalUnidades}</td><td></td><td></td><td></td><td></td></tr></tfoot>
+    </table></div>`;
+}
+document.getElementById('buscar-inventario').addEventListener('input', renderInventarioLista);
+
 /* ================= KARDEX ================= */
 function poblarSelectKardex(){
   const sel = document.getElementById('kardex-producto');
@@ -2559,6 +2648,7 @@ function renderAll(){
   renderProductos();
   renderClientes();
   renderProveedores();
+  renderInventarioLista();
   renderKardex();
   renderFinanzas();
   renderFacturas();
