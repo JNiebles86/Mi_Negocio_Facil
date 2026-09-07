@@ -2160,7 +2160,7 @@ function etiquetaCortaBucket(key, gran){
 let dashLineChart = null;
 let dashDonutGanancia = null;
 let dashDonutCategoria = null;
-const DASH_COLORES_RANK = ['#ff2e63','#7b2ff7','#ff8a00','#00c2d9','#00e0a3','#ffd166'];
+const DASH_COLORES_RANK = ['#c9a961','#6b8cae','#6f9b7d','#b57a5e','#8b93a1','#9a7fb0'];
 
 function renderDashboard(){
   const contKpis = document.getElementById('dash-kpis');
@@ -2219,18 +2219,18 @@ function renderDashboard(){
     const dataVentas = keys.map(k=>buckets[k].ventas);
     const ctx = canvasLine.getContext('2d');
     const gradiente = ctx.createLinearGradient(0,0,0,200);
-    gradiente.addColorStop(0,'rgba(255,46,99,0.45)');
-    gradiente.addColorStop(1,'rgba(255,46,99,0)');
+    gradiente.addColorStop(0,'rgba(201,169,97,0.35)');
+    gradiente.addColorStop(1,'rgba(201,169,97,0)');
     if(dashLineChart) dashLineChart.destroy();
     dashLineChart = new Chart(ctx, {
       type:'line',
-      data:{ labels, datasets:[{ data:dataVentas, borderColor:'#ff2e63', backgroundColor:gradiente, fill:true, tension:0.35, pointRadius:0, borderWidth:3 }] },
+      data:{ labels, datasets:[{ data:dataVentas, borderColor:'#c9a961', backgroundColor:gradiente, fill:true, tension:0.35, pointRadius:0, borderWidth:2.5 }] },
       options:{
         responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>money(c.parsed.y)}} },
         scales:{
-          x:{ ticks:{color:'#a99fc9', maxRotation:0, autoSkip:true}, grid:{display:false} },
-          y:{ ticks:{color:'#a99fc9', callback:(v)=>money(v)}, grid:{color:'rgba(255,255,255,0.06)'} }
+          x:{ ticks:{color:'#8b93a1', maxRotation:0, autoSkip:true}, grid:{display:false} },
+          y:{ ticks:{color:'#8b93a1', callback:(v)=>money(v)}, grid:{color:'rgba(255,255,255,0.05)'} }
         }
       }
     });
@@ -2244,7 +2244,7 @@ function renderDashboard(){
     if(dashDonutGanancia) dashDonutGanancia.destroy();
     dashDonutGanancia = new Chart(canvasD1.getContext('2d'), {
       type:'doughnut',
-      data:{ datasets:[{ data:[margenClamped, 100-margenClamped], backgroundColor:['#7b2ff7','rgba(255,255,255,0.08)'], borderWidth:0 }] },
+      data:{ datasets:[{ data:[margenClamped, 100-margenClamped], backgroundColor:['#c9a961','rgba(255,255,255,0.06)'], borderWidth:0 }] },
       options:{ cutout:'75%', plugins:{legend:{display:false}, tooltip:{enabled:false}} }
     });
   }
@@ -2292,7 +2292,7 @@ function renderDashboard(){
     if(dashDonutCategoria) dashDonutCategoria.destroy();
     dashDonutCategoria = new Chart(canvasD2.getContext('2d'), {
       type:'doughnut',
-      data:{ datasets:[{ data:[catPct, 100-catPct], backgroundColor:['#ff8a00','rgba(255,255,255,0.08)'], borderWidth:0 }] },
+      data:{ datasets:[{ data:[catPct, 100-catPct], backgroundColor:['#6b8cae','rgba(255,255,255,0.06)'], borderWidth:0 }] },
       options:{ cutout:'75%', plugins:{legend:{display:false}, tooltip:{enabled:false}} }
     });
   }

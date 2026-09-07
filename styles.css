@@ -327,52 +327,53 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);}
   padding:10px 14px;border-radius:10px;font-weight:700;
 }
 
-/* Dashboard financiero: panel tipo "premium dashboard" oscuro */
+/* Dashboard financiero: informe ejecutivo — paleta oscura, sobria y sutil */
 .dash-shell{
-  background:linear-gradient(160deg,#170b2e 0%,#1c0f3a 55%,#12081f 100%);
-  border-radius:20px;
+  background:linear-gradient(165deg,#1b1e24 0%,#20232a 55%,#16181d 100%);
+  border-radius:18px;
   padding:16px 14px 22px;
   margin-top:10px;
-  color:#e8e3f5;
+  color:#e7e9ec;
+  border:1px solid rgba(255,255,255,0.06);
 }
-.dash-shell h2,.dash-shell h3{color:#f2eefc;}
-.dash-shell .subtitle,.dash-shell p{color:#a99fc9;}
-.dash-shell .section-title{color:#c9bdf0;}
-.dash-shell .date-filter input{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15);color:#fff;color-scheme:dark;}
-.dash-shell .date-filter label{color:#c9bdf0;}
-.dash-shell .btn-secondary{background:rgba(255,255,255,0.1);color:#fff;}
-.dash-shell .period-tabs .period-tab{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:#c9bdf0;}
-.dash-shell .period-tab.active{background:linear-gradient(135deg,#7b2ff7,#ff2e63);border-color:transparent;color:#fff;}
-.dash-shell .empty-state{color:#8579a8;}
-.dash-shell .data-table-wrap{background:rgba(255,255,255,0.05);}
-.dash-shell .data-table th{background:rgba(255,255,255,0.04);color:#a99fc9;}
-.dash-shell .data-table td{border-color:rgba(255,255,255,0.08);color:#e8e3f5;}
-.dash-shell .data-table tr.total-row td{background:rgba(255,255,255,0.09);border-top-color:#ff2e63;}
+.dash-shell h2,.dash-shell h3{color:#f0f1f3;font-weight:700;}
+.dash-shell .subtitle,.dash-shell p{color:#8b93a1;}
+.dash-shell .section-title{color:#aab0ba;letter-spacing:.01em;}
+.dash-shell .date-filter input{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.12);color:#e7e9ec;color-scheme:dark;}
+.dash-shell .date-filter label{color:#aab0ba;}
+.dash-shell .btn-secondary{background:rgba(255,255,255,0.07);color:#e7e9ec;}
+.dash-shell .period-tabs .period-tab{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1);color:#8b93a1;}
+.dash-shell .period-tab.active{background:#3a3f4a;border-color:#c9a961;color:#f0e6cf;}
+.dash-shell .empty-state{color:#6b7280;}
+.dash-shell .data-table-wrap{background:rgba(255,255,255,0.03);}
+.dash-shell .data-table th{background:rgba(255,255,255,0.03);color:#8b93a1;}
+.dash-shell .data-table td{border-color:rgba(255,255,255,0.06);color:#e7e9ec;}
+.dash-shell .data-table tr.total-row td{background:rgba(201,169,97,0.10);border-top-color:#c9a961;}
 
 .dash-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
-.dash-kpi-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:4px;}
-.dash-kpi-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:2px;}
-.dash-kpi-label{font-size:11px;color:#a99fc9;font-weight:600;}
-.dash-kpi-value{font-size:18px;font-weight:800;color:#fff;}
-.dash-accent-pink{background:linear-gradient(135deg,#ff2e63,#ff6b9d);}
-.dash-accent-purple{background:linear-gradient(135deg,#7b2ff7,#b26bff);}
-.dash-accent-orange{background:linear-gradient(135deg,#ff8a00,#ffc371);}
-.dash-accent-cyan{background:linear-gradient(135deg,#00c2d9,#00e0a3);}
+.dash-kpi-card{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px;}
+.dash-kpi-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:2px;}
+.dash-kpi-label{font-size:11px;color:#8b93a1;font-weight:600;}
+.dash-kpi-value{font-size:17px;font-weight:700;color:#f0f1f3;}
+.dash-accent-pink{background:rgba(201,169,97,0.16);}
+.dash-accent-purple{background:rgba(107,140,174,0.16);}
+.dash-accent-orange{background:rgba(181,122,94,0.18);}
+.dash-accent-cyan{background:rgba(111,155,125,0.16);}
 
-.dash-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:14px;margin-top:14px;}
+.dash-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;margin-top:14px;}
 .dash-chart-wrap{position:relative;height:200px;margin-top:8px;}
 
 .dash-donuts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
-.dash-donut-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:14px;text-align:center;}
+.dash-donut-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;text-align:center;}
 .dash-donut-wrap{position:relative;width:100px;height:100px;margin:0 auto;}
-.dash-donut-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:#fff;}
-.dash-donut-label{font-size:11px;color:#a99fc9;margin-top:8px;font-weight:600;}
+.dash-donut-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#f0f1f3;}
+.dash-donut-label{font-size:11px;color:#8b93a1;margin-top:8px;font-weight:600;}
 
 .dash-rank-item{margin-top:12px;}
 .dash-rank-item:first-child{margin-top:8px;}
-.dash-rank-top{display:flex;justify-content:space-between;font-size:12px;color:#e8e3f5;margin-bottom:5px;font-weight:600;}
-.dash-rank-bar-bg{background:rgba(255,255,255,0.08);border-radius:8px;height:8px;overflow:hidden;}
-.dash-rank-bar-fill{height:100%;border-radius:8px;}
+.dash-rank-top{display:flex;justify-content:space-between;font-size:12px;color:#e7e9ec;margin-bottom:5px;font-weight:600;}
+.dash-rank-bar-bg{background:rgba(255,255,255,0.06);border-radius:6px;height:7px;overflow:hidden;}
+.dash-rank-bar-fill{height:100%;border-radius:6px;}
 
 /* filtro de fecha reutilizable */
 .date-filter{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:10px 0 4px;}
