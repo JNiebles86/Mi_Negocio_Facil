@@ -46,7 +46,7 @@ function esAdmin(){ return rolActual !== 'empleado'; }
 
 /* ---------- Persistencia (Firestore, por usuario) ---------- */
 function emptyDB(){
-  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [], cambios: [] };
+  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [], cambios: [], aperturasCaja: [] };
 }
 
 async function loadUserDB(idNegocio){
@@ -165,7 +165,7 @@ function toast(msg){
 
 /* ---------- Pantallas de nivel superior (cargando / login / onboarding / app) ---------- */
 function showView(id){
-  ['view-cargando','view-login','view-onboarding','app'].forEach(v=>{
+  ['view-cargando','view-login','view-onboarding','view-apertura-caja','app'].forEach(v=>{
     document.getElementById(v).hidden = (v !== id);
   });
 }
@@ -2529,6 +2529,29 @@ document.getElementById('detalle-body').addEventListener('click', (e)=>{
 });
 
 /* ================= CIERRE DE CAJA ================= */
+/* ================= APERTURA DE CAJA (empleados, una vez por día) ================= */
+function claveDia(fecha){ return new Date(fecha).toISOString().slice(0,10); }
+function necesitaAperturaCajaHoy(){
+  const hoy = claveDia(new Date());
+  return !(DB.aperturasCaja||[]).some(a=> a.usuarioUid===currentUser.uid && claveDia(a.fecha)===hoy);
+}
+function aperturasDeHoy(){
+  const hoy = claveDia(new Date());
+  return (DB.aperturasCaja||[]).filter(a=> claveDia(a.fecha)===hoy);
+}
+document.getElementById('form-apertura-caja').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const monto = Number(document.getElementById('ac-monto').value)||0;
+  const nombreUsuario = (DB.negocio.empleados||[]).find(emp=>emp.uid===currentUser.uid)?.nombre || 'Empleado';
+  DB.aperturasCaja = DB.aperturasCaja || [];
+  DB.aperturasCaja.push({ id: uid(), fecha: new Date().toISOString(), monto, usuarioUid: currentUser.uid, usuarioNombre: nombreUsuario });
+  registrarCambio('Caja', 'Apertura', `${nombreUsuario} abrió caja con ${money(monto)}`);
+  saveDB();
+  toast('Caja abierta ✅');
+  showView('app');
+  switchView(currentView);
+});
+
 function abrirCierreCaja(){
   const ventasHoy = ventasDelPeriodo('dia');
   const contado = ventasHoy.filter(v=>v.tipoVenta!=='credito');
@@ -2545,6 +2568,14 @@ function abrirCierreCaja(){
     `<div class="cierre-line"><span>${escapeHtml(m)}</span><span>${money(val)}</span></div>`
   ).join('') || '<div class="cierre-line"><span>Sin ventas</span></div>';
 
+  const aperturas = aperturasDeHoy();
+  const totalApertura = aperturas.reduce((a,x)=>a+x.monto,0);
+  const lineasApertura = aperturas.length ? aperturas.map(a=>
+    `<div class="cierre-line"><span>Apertura — ${escapeHtml(a.usuarioNombre)}</span><span>${money(a.monto)}</span></div>`
+  ).join('') : '<div class="cierre-line"><span>Sin apertura registrada hoy</span></div>';
+  const efectivoContado = porMetodo['Efectivo'] || 0;
+  const totalEsperadoEfectivo = totalApertura + efectivoContado;
+
   document.getElementById('detalle-titulo').textContent = '📋 Cierre de caja de hoy';
   document.getElementById('detalle-body').innerHTML = `
     <div class="cierre-split">
@@ -2558,7 +2589,10 @@ function abrirCierreCaja(){
         <div class="cierre-total">${money(totalCredito)}</div>
         <div class="cierre-line"><span>${credito.length} venta(s)</span></div>
       </div>
-    </div>`;
+    </div>
+    <h4 style="margin-top:14px;">🧾 Apertura de caja de hoy</h4>
+    ${lineasApertura}
+    <div class="cierre-line" style="font-weight:800;font-size:13px;margin-top:6px;"><span>Total esperado en efectivo (apertura + ventas en efectivo)</span><span>${money(totalEsperadoEfectivo)}</span></div>`;
   openModal('detalle');
 }
 document.getElementById('btn-cierre-caja').addEventListener('click', abrirCierreCaja);
@@ -3056,8 +3090,12 @@ onAuthStateChanged(auth, async (user)=>{
 
     DB = await loadUserDB(negocioId);
     if(DB.negocio){
-      showView('app');
-      switchView(currentView);
+      if(rolActual==='empleado' && necesitaAperturaCajaHoy()){
+        showView('view-apertura-caja');
+      } else {
+        showView('app');
+        switchView(currentView);
+      }
     } else if(acceso){
       // el negocio del administrador todavía no tiene onboarding hecho (caso raro)
       toast('Esta cuenta de empleado aún no tiene un negocio configurado ⚠️');

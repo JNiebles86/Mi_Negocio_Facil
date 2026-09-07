@@ -121,6 +121,22 @@
     </div>
   </section>
 
+  <!-- APERTURA DE CAJA (empleados, una vez por día) -->
+  <section id="view-apertura-caja" class="onboarding" hidden>
+    <div class="onboarding-card">
+      <img src="icons/icon-192.png" alt="Mi Negocio Fácil" class="onboarding-logo">
+      <h1>🧾 Apertura de caja</h1>
+      <p class="onboarding-tag">Antes de empezar, cuéntanos con cuánto dinero abres la caja hoy. Si no tienes nada, puedes dejarlo en $0.</p>
+
+      <form id="form-apertura-caja">
+        <label>Dinero en caja para iniciar el día
+          <input type="number" id="ac-monto" min="0" step="0.01" value="0" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-lg">Abrir caja e iniciar 🚀</button>
+      </form>
+    </div>
+  </section>
+
   <!-- ================= APP SHELL ================= -->
   <div id="app" hidden>
 
@@ -339,6 +355,7 @@
           <button class="action-card" data-open="gasto"><span class="action-icon icon-yellow">🧾</span><span class="action-label">Gastos</span></button>
           <button class="action-card" data-open="compra"><span class="action-icon icon-teal">🧾</span><span class="action-label">Facturas Proveedores</span></button>
         </div>
+        <button class="btn btn-secondary btn-block" id="btn-cierre-caja" style="margin-top:16px;">📋 Cierre de caja de hoy</button>
       </section>
 
       <!-- FINANZAS -->
@@ -386,8 +403,6 @@
         <h3 class="section-title">🎯 Metas del negocio</h3>
         <div id="lista-metas" class="list"></div>
         <button class="btn btn-secondary btn-block" id="btn-nueva-meta">+ Nueva meta</button>
-
-        <button class="btn btn-secondary btn-block" id="btn-cierre-caja">📋 Cierre de caja de hoy</button>
 
         <h3 class="section-title">📅 Historial mensual</h3>
         <p style="font-size:12px;">Ventas, gastos, compras y clientes/proveedores nuevos, mes a mes.</p>
