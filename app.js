@@ -43,10 +43,13 @@ let negocioId = null; // id del documento negocios/{id} que se está usando (pro
 let rolActual = 'admin'; // 'admin' o 'empleado'
 
 function esAdmin(){ return rolActual !== 'empleado'; }
+function nombreUsuarioActual(){
+  return (DB.negocio?.empleados||[]).find(emp=>emp.uid===currentUser.uid)?.nombre || (esAdmin() ? 'Administrador' : 'Empleado');
+}
 
 /* ---------- Persistencia (Firestore, por usuario) ---------- */
 function emptyDB(){
-  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [], cambios: [], aperturasCaja: [] };
+  return { negocio: null, productos: [], clientes: [], proveedores: [], ventas: [], compras: [], ajustesInventario: [], gastos: [], metas: [], cambios: [], aperturasCaja: [], cierresCaja: [] };
 }
 
 async function loadUserDB(idNegocio){
@@ -351,6 +354,27 @@ function marcarSeleccionLista(listaId, id){
   const btn = cont.querySelector(`[data-id="${id}"]`);
   btn?.closest('.list-item')?.classList.add('selected');
 }
+
+/* al hacer clic fuera de una lista maestro-detalle (o de su panel), se quita la selección
+   y el panel vuelve al mensaje de "Selecciona..." — solo aplica en escritorio, en celular el
+   detalle es un modal aparte. */
+const PANELES_MAESTRO_DETALLE = [
+  { lista:'lista-facturas', panel:'factura-detalle-panel', vacio:'<div class="empty-state">Selecciona una factura para ver el detalle</div>' },
+  { lista:'lista-compras', panel:'compra-detalle-panel', vacio:'<div class="empty-state">Selecciona una compra para ver el detalle</div>' }
+];
+document.addEventListener('click', (e)=>{
+  if(!isDesktopLayout()) return;
+  PANELES_MAESTRO_DETALLE.forEach(({lista,panel,vacio})=>{
+    const contLista = document.getElementById(lista);
+    const contPanel = document.getElementById(panel);
+    if(!contLista || !contPanel) return;
+    const clicDentro = contLista.contains(e.target) || contPanel.contains(e.target);
+    if(!clicDentro && contLista.querySelector('.list-item.selected')){
+      contLista.querySelectorAll('.list-item.selected').forEach(el=>el.classList.remove('selected'));
+      contPanel.innerHTML = vacio;
+    }
+  });
+});
 
 document.querySelectorAll('[data-open]').forEach(el=>{
   el.addEventListener('click', ()=>{
@@ -789,7 +813,9 @@ document.getElementById('form-venta').addEventListener('submit', (e)=>{
     subtotal: t.subtotal,
     descuentoTotal: t.descuentoTotal,
     ivaTotal: t.ivaTotal,
-    total: t.total
+    total: t.total,
+    registradoPorUid: currentUser.uid,
+    registradoPorNombre: nombreUsuarioActual()
   };
   DB.ventas.push(venta);
   registrarCambio('Venta', 'Crear', `Registró la factura de venta No. ${venta.numeroFactura} por ${money(venta.total)}`);
@@ -2010,6 +2036,7 @@ function renderValorInventario(){
 
 function renderFinanzas(){
   renderValorInventario();
+  renderRegistrosCaja();
   const period = periods.finanzas;
   const vs = ventasDelPeriodo(period);
   const gs = gastosDelPeriodo(period);
@@ -2542,7 +2569,7 @@ function aperturasDeHoy(){
 document.getElementById('form-apertura-caja').addEventListener('submit', (e)=>{
   e.preventDefault();
   const monto = Number(document.getElementById('ac-monto').value)||0;
-  const nombreUsuario = (DB.negocio.empleados||[]).find(emp=>emp.uid===currentUser.uid)?.nombre || 'Empleado';
+  const nombreUsuario = nombreUsuarioActual();
   DB.aperturasCaja = DB.aperturasCaja || [];
   DB.aperturasCaja.push({ id: uid(), fecha: new Date().toISOString(), monto, usuarioUid: currentUser.uid, usuarioNombre: nombreUsuario });
   registrarCambio('Caja', 'Apertura', `${nombreUsuario} abrió caja con ${money(monto)}`);
@@ -2553,7 +2580,8 @@ document.getElementById('form-apertura-caja').addEventListener('submit', (e)=>{
 });
 
 function abrirCierreCaja(){
-  const ventasHoy = ventasDelPeriodo('dia');
+  // el cierre es personal: solo cuenta lo que ESTE usuario registró hoy, para poder cuadrar su propia caja
+  const ventasHoy = ventasDelPeriodo('dia').filter(v=> (v.registradoPorUid||null)===currentUser.uid);
   const contado = ventasHoy.filter(v=>v.tipoVenta!=='credito');
   const credito = ventasHoy.filter(v=>v.tipoVenta==='credito');
   const totalContado = contado.reduce((a,v)=>a+v.total,0);
@@ -2564,9 +2592,12 @@ function abrirCierreCaja(){
     const m = v.metodoPago || 'Otro';
     porMetodo[m] = (porMetodo[m]||0) + v.total;
   });
-  const lineasMetodo = Object.entries(porMetodo).map(([m,val])=>
+  const metodosBase = { 'Efectivo':'💵', 'Transferencia':'🏦', 'Tarjeta de crédito':'💳' };
+  const lineasMetodo = Object.entries(metodosBase).map(([m,icono])=>
+    `<div class="cierre-line"><span>${icono} ${m}</span><span>${money(porMetodo[m]||0)}</span></div>`
+  ).join('') + Object.entries(porMetodo).filter(([m])=>!metodosBase[m]).map(([m,val])=>
     `<div class="cierre-line"><span>${escapeHtml(m)}</span><span>${money(val)}</span></div>`
-  ).join('') || '<div class="cierre-line"><span>Sin ventas</span></div>';
+  ).join('');
 
   const aperturas = aperturasDeHoy();
   const totalApertura = aperturas.reduce((a,x)=>a+x.monto,0);
@@ -2576,13 +2607,28 @@ function abrirCierreCaja(){
   const efectivoContado = porMetodo['Efectivo'] || 0;
   const totalEsperadoEfectivo = totalApertura + efectivoContado;
 
+  const hoy = claveDia(new Date());
+  const cierreGuardado = (DB.cierresCaja||[]).find(c=>c.usuarioUid===currentUser.uid && claveDia(c.fecha)===hoy);
+  const bloqueGuardar = cierreGuardado ? `
+    <div class="info-box" style="margin-top:14px;">
+      ✅ Ya guardaste tu cierre de hoy a las ${fmtDateTime(cierreGuardado.fecha).split(', ')[1]}.<br>
+      Efectivo contado: <strong>${money(cierreGuardado.efectivoReal)}</strong> ·
+      Diferencia: <strong style="${cierreGuardado.diferencia<0?'color:#d9534f;':''}">${money(cierreGuardado.diferencia)}</strong>
+    </div>` : `
+    <div style="margin-top:14px;">
+      <label>Efectivo que contaste físicamente en caja
+        <input type="number" id="ck-efectivo-real" min="0" step="0.01" value="${totalEsperadoEfectivo}">
+      </label>
+      <button type="button" class="btn btn-primary btn-block" id="btn-guardar-cierre" style="margin-top:8px;">💾 Guardar cierre de caja</button>
+    </div>`;
+
   document.getElementById('detalle-titulo').textContent = '📋 Cierre de caja de hoy';
   document.getElementById('detalle-body').innerHTML = `
     <div class="cierre-split">
       <div class="cierre-col">
-        <h4>💵 Contado</h4>
-        <div class="cierre-total">${money(totalContado)}</div>
+        <h4>💵 Ventas de contado por método de pago</h4>
         ${lineasMetodo}
+        <div class="cierre-line" style="font-weight:800;border-top:1px solid var(--borde);margin-top:6px;padding-top:6px;"><span>Total contado</span><span>${money(totalContado)}</span></div>
       </div>
       <div class="cierre-col">
         <h4>🧾 Crédito</h4>
@@ -2592,10 +2638,65 @@ function abrirCierreCaja(){
     </div>
     <h4 style="margin-top:14px;">🧾 Apertura de caja de hoy</h4>
     ${lineasApertura}
-    <div class="cierre-line" style="font-weight:800;font-size:13px;margin-top:6px;"><span>Total esperado en efectivo (apertura + ventas en efectivo)</span><span>${money(totalEsperadoEfectivo)}</span></div>`;
+    <div class="cierre-line" style="font-weight:800;font-size:13px;margin-top:6px;"><span>Total esperado en efectivo (apertura + ventas en efectivo)</span><span>${money(totalEsperadoEfectivo)}</span></div>
+    ${bloqueGuardar}`;
+
+  document.getElementById('btn-guardar-cierre')?.addEventListener('click', ()=> guardarCierreCaja(totalContado, totalCredito, totalApertura, totalEsperadoEfectivo));
   openModal('detalle');
 }
 document.getElementById('btn-cierre-caja').addEventListener('click', abrirCierreCaja);
+
+function guardarCierreCaja(totalContado, totalCredito, totalApertura, totalEsperadoEfectivo){
+  const input = document.getElementById('ck-efectivo-real');
+  const efectivoReal = Number(input.value)||0;
+  const diferencia = efectivoReal - totalEsperadoEfectivo;
+  const nombreUsuario = nombreUsuarioActual();
+  DB.cierresCaja = DB.cierresCaja || [];
+  DB.cierresCaja.push({
+    id: uid(), fecha: new Date().toISOString(), usuarioUid: currentUser.uid, usuarioNombre: nombreUsuario,
+    totalContado, totalCredito, totalApertura, totalEsperadoEfectivo, efectivoReal, diferencia
+  });
+  registrarCambio('Caja', 'Cierre', `${nombreUsuario} guardó el cierre de caja de hoy (contó ${money(efectivoReal)}, diferencia ${money(diferencia)})`);
+  saveDB();
+  toast('Cierre de caja guardado ✅');
+  abrirCierreCaja();
+}
+
+function renderRegistrosCaja(){
+  const cont = document.getElementById('tabla-registros-caja');
+  if(!cont) return;
+  const mapa = {};
+  (DB.aperturasCaja||[]).forEach(a=>{
+    const key = a.usuarioUid+'|'+claveDia(a.fecha);
+    if(!mapa[key]) mapa[key] = { usuario: a.usuarioNombre, dia: claveDia(a.fecha) };
+    mapa[key].apertura = a.monto;
+    mapa[key].fechaApertura = a.fecha;
+  });
+  (DB.cierresCaja||[]).forEach(c=>{
+    const key = c.usuarioUid+'|'+claveDia(c.fecha);
+    if(!mapa[key]) mapa[key] = { usuario: c.usuarioNombre, dia: claveDia(c.fecha) };
+    mapa[key].cierre = c.efectivoReal;
+    mapa[key].diferencia = c.diferencia;
+    mapa[key].ventasDia = c.totalContado + c.totalCredito;
+    mapa[key].fechaCierre = c.fecha;
+  });
+  const filas = Object.values(mapa).sort((a,b)=> b.dia.localeCompare(a.dia) || a.usuario.localeCompare(b.usuario));
+  if(filas.length===0){
+    cont.innerHTML = '<div class="empty-state">Todavía no hay aperturas ni cierres de caja registrados</div>';
+    return;
+  }
+  cont.innerHTML = `<div class="data-table-wrap"><table class="data-table">
+      <thead><tr><th>Fecha</th><th>Usuario</th><th class="num">Apertura</th><th class="num">Cierre (efectivo)</th><th class="num">Ventas del día</th><th class="num">Diferencia</th></tr></thead>
+      <tbody>${filas.map(f=>`<tr>
+        <td>${fmtDate(f.fechaApertura||f.fechaCierre)}</td>
+        <td>${escapeHtml(f.usuario)}</td>
+        <td class="num">${f.apertura!==undefined ? money(f.apertura) : '—'}</td>
+        <td class="num">${f.cierre!==undefined ? money(f.cierre) : 'Sin cerrar'}</td>
+        <td class="num">${f.ventasDia!==undefined ? money(f.ventasDia) : '—'}</td>
+        <td class="num${f.diferencia<0?' neg':''}">${f.diferencia!==undefined ? money(f.diferencia) : '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
 
 /* ================= INFORME MENSUAL DETALLADO (no consolidado) ================= */
 function abrirInformeMensual(){
@@ -3003,6 +3104,7 @@ function renderTopbar(){
   document.getElementById('tb-fecha').textContent = new Date().toLocaleDateString('es-CO', {weekday:'long', day:'numeric', month:'long'});
   document.getElementById('nav-label-registrar').textContent = DB.negocio?.nombre || 'Registrar';
   document.getElementById('registrar-titulo').textContent = DB.negocio?.nombre || 'Registrar';
+  document.getElementById('btn-cierre-caja').textContent = `📋 Cierre de caja — ${new Date().toLocaleDateString('es-CO',{day:'numeric', month:'long'})}`;
 }
 
 function renderAll(){
@@ -3044,10 +3146,14 @@ document.getElementById('btn-instalar').addEventListener('click', async ()=>{
   document.getElementById('install-card').hidden = true;
 });
 
-if(isIos() && !isStandalone()){
+if(!isStandalone()){
   document.getElementById('install-card').hidden = false;
-  document.getElementById('btn-instalar').hidden = true;
-  document.getElementById('install-steps-ios').hidden = false;
+  if(isIos()){
+    document.getElementById('btn-instalar').hidden = true;
+    document.getElementById('install-steps-ios').hidden = false;
+  } else {
+    document.getElementById('install-pasos-generico').hidden = false;
+  }
 }
 
 if('serviceWorker' in navigator){

@@ -132,7 +132,7 @@
         <label>Dinero en caja para iniciar el día
           <input type="number" id="ac-monto" min="0" step="0.01" value="0" required>
         </label>
-        <button type="submit" class="btn btn-primary btn-lg">Abrir caja e iniciar 🚀</button>
+        <button type="submit" class="btn btn-primary btn-lg">✅ Iniciar día</button>
       </form>
     </div>
   </section>
@@ -353,9 +353,9 @@
         <div class="register-grid">
           <button class="action-card" data-open="venta"><span class="action-icon icon-green">💰</span><span class="action-label">Ventas</span></button>
           <button class="action-card" data-open="gasto"><span class="action-icon icon-yellow">🧾</span><span class="action-label">Gastos</span></button>
-          <button class="action-card" data-open="compra"><span class="action-icon icon-teal">🧾</span><span class="action-label">Facturas Proveedores</span></button>
+          <button class="action-card solo-admin" data-open="compra"><span class="action-icon icon-teal">🧾</span><span class="action-label">Compras</span></button>
         </div>
-        <button class="btn btn-secondary btn-block" id="btn-cierre-caja" style="margin-top:16px;">📋 Cierre de caja de hoy</button>
+        <button class="btn btn-secondary btn-block" id="btn-cierre-caja" style="margin-top:16px;">📋 Cierre de caja</button>
       </section>
 
       <!-- FINANZAS -->
@@ -403,6 +403,12 @@
         <h3 class="section-title">🎯 Metas del negocio</h3>
         <div id="lista-metas" class="list"></div>
         <button class="btn btn-secondary btn-block" id="btn-nueva-meta">+ Nueva meta</button>
+
+        <div class="solo-admin">
+          <h3 class="section-title">🧾 Apertura y cierre de caja por usuario</h3>
+          <p style="font-size:12px;">Con cuánto abrió caja cada usuario, con cuánto la cerró (efectivo contado), sus ventas del día y la diferencia.</p>
+          <div id="tabla-registros-caja"></div>
+        </div>
 
         <h3 class="section-title">📅 Historial mensual</h3>
         <p style="font-size:12px;">Ventas, gastos, compras y clientes/proveedores nuevos, mes a mes.</p>
@@ -551,6 +557,7 @@
             <li>Elige <strong>"Agregar a pantalla de inicio"</strong></li>
             <li>Toca <strong>"Agregar"</strong> arriba a la derecha</li>
           </ol>
+          <p class="info-box" id="install-pasos-generico" hidden>Si el botón no instala automáticamente: abre el menú (⋮ o ≡) de tu navegador y busca <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.</p>
         </div>
 
         <div class="profile-card">
