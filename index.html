@@ -37,7 +37,7 @@
 
       <div class="tabs" id="login-tabs">
         <button type="button" class="tab active" data-logintab="signin">Iniciar sesión</button>
-        <button type="button" class="tab" data-logintab="signup">Crear cuenta</button>
+        <button type="button" class="tab" data-logintab="signup" id="tab-crear-cuenta">Crear cuenta</button>
       </div>
 
       <form id="form-signin">
@@ -54,6 +54,19 @@
         <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
         <button type="button" class="link-btn" id="btn-olvide-clave">¿Olvidaste tu contraseña?</button>
         <p class="info-box" id="olvide-mensaje" hidden>La recuperación automática por SMS todavía no está activada en esta app. Mientras tanto, contáctanos directamente para verificar tu identidad y restablecer tu contraseña.</p>
+        <button type="button" class="link-btn" id="btn-login-maestro">👑 Iniciar sesión con correo (administrador maestro)</button>
+      </form>
+
+      <form id="form-signin-maestro" hidden>
+        <label>Correo electrónico
+          <input type="email" id="sm-correo" required>
+        </label>
+        <label>Contraseña
+          <input type="password" id="sm-clave" required>
+        </label>
+        <p class="form-error" id="sm-error" hidden></p>
+        <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
+        <button type="button" class="link-btn" id="btn-login-negocio">← Volver a inicio de sesión normal</button>
       </form>
 
       <form id="form-signup" hidden>
@@ -116,8 +129,36 @@
             <option value="EUR">Euro (EUR)</option>
           </select>
         </label>
+        <p class="form-error" id="ob-error" hidden></p>
         <button type="submit" class="btn btn-primary btn-lg">Crear mi negocio 🚀</button>
       </form>
+    </div>
+  </section>
+
+  <!-- ================= PANEL MAESTRO ================= -->
+  <section id="view-panel-maestro" class="onboarding" hidden>
+    <div class="onboarding-card">
+      <img src="icons/icon-192.png" alt="Mi Negocio Fácil" class="onboarding-logo">
+      <h1>👑 Panel maestro</h1>
+      <p class="onboarding-tag">Todos los negocios registrados</p>
+      <div id="lista-negocios-maestro" class="list"></div>
+
+      <h3 class="section-title">➕ Invitar negocio nuevo</h3>
+      <p style="font-size:12px;">El número que invites aquí es el único que va a poder usar "Crear cuenta" en el link maestro.</p>
+      <form id="form-invitar-negocio">
+        <label>Número de celular del nuevo negocio
+          <div class="phone-input">
+            <span class="phone-prefix">+57</span>
+            <input type="tel" id="inv-telefono" inputmode="numeric" placeholder="3001234567" maxlength="10" required>
+          </div>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">Generar invitación</button>
+      </form>
+
+      <h3 class="section-title">Invitaciones pendientes</h3>
+      <div id="lista-invitaciones" class="list"></div>
+
+      <button type="button" class="btn btn-secondary btn-block" id="btn-cerrar-sesion-maestro">Cerrar sesión</button>
     </div>
   </section>
 
@@ -146,6 +187,7 @@
         <strong id="tb-negocio">Mi negocio</strong>
         <span id="tb-fecha"></span>
       </div>
+      <button type="button" id="banner-modo-maestro" class="btn btn-secondary" hidden>🔙 Panel maestro</button>
       <button class="nav-btn nav-btn-center topbar-fab" data-view="registrar"><span>➕</span></button>
     </header>
 

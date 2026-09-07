@@ -9,7 +9,7 @@ import {
   signInWithEmailAndPassword, signOut, deleteUser
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, deleteDoc
+  initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, deleteDoc, collection, getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -41,6 +41,8 @@ let DB = null;
 let currentUser = null;
 let negocioId = null; // id del documento negocios/{id} que se está usando (propio o del negocio al que fue invitado)
 let rolActual = 'admin'; // 'admin' o 'empleado'
+let esMaestro = false; // cuenta de supervisión, ve y corrige todos los negocios
+let modoMaestro = false; // true mientras el maestro está "dentro" de un negocio ajeno
 
 function esAdmin(){ return rolActual !== 'empleado'; }
 function nombreUsuarioActual(){
@@ -168,7 +170,7 @@ function toast(msg){
 
 /* ---------- Pantallas de nivel superior (cargando / login / onboarding / app) ---------- */
 function showView(id){
-  ['view-cargando','view-login','view-onboarding','view-apertura-caja','app'].forEach(v=>{
+  ['view-cargando','view-login','view-onboarding','view-apertura-caja','view-panel-maestro','app'].forEach(v=>{
     document.getElementById(v).hidden = (v !== id);
   });
 }
@@ -392,9 +394,11 @@ document.querySelectorAll('[data-open]').forEach(el=>{
 document.getElementById('btn-nueva-meta').addEventListener('click', ()=> openModal('meta'));
 
 /* ================= ONBOARDING ================= */
-document.getElementById('form-onboarding').addEventListener('submit', (e)=>{
+document.getElementById('form-onboarding').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  DB.negocio = {
+  const errorEl = document.getElementById('ob-error');
+  errorEl.hidden = true;
+  const negocio = {
     propietario: document.getElementById('ob-propietario').value.trim(),
     nombre: document.getElementById('ob-nombre').value.trim() || 'Mi negocio',
     tipo: document.getElementById('ob-tipo').value,
@@ -402,9 +406,121 @@ document.getElementById('form-onboarding').addEventListener('submit', (e)=>{
     moneda: document.getElementById('ob-moneda').value,
     creado: new Date().toISOString()
   };
-  saveDB();
+  try{
+    await setDoc(doc(db, 'negocios', negocioId), { ...DB, negocio });
+    DB.negocio = negocio;
+    deleteDoc(doc(db, 'invitaciones', currentUser.email.split('@')[0])).catch(()=>{});
+    showView('app');
+    switchView(currentView);
+  }catch(err){
+    errorEl.textContent = err.code === 'permission-denied'
+      ? 'Este número no tiene una invitación activa. Contacta al administrador. ⚠️'
+      : 'No se pudo guardar. Revisa tu conexión e intenta de nuevo. ⚠️';
+    errorEl.hidden = false;
+  }
+});
+
+/* ================= PANEL MAESTRO ================= */
+async function renderPanelMaestro(){
+  const cont = document.getElementById('lista-negocios-maestro');
+  cont.innerHTML = '<div class="empty-state">Cargando negocios…</div>';
+  const snap = await getDocs(collection(db, 'negocios'));
+  const negocios = [];
+  snap.forEach(d => { if(d.data().negocio) negocios.push({ id:d.id, ...d.data().negocio }); });
+  if(!negocios.length){
+    cont.innerHTML = '<div class="empty-state">Todavía no hay negocios creados</div>';
+  } else {
+    cont.innerHTML = negocios.map(n => `
+      <div class="list-item">
+        <div>
+          <strong>${escapeHtml(n.nombre||'—')}</strong>
+          <div style="font-size:12px;color:var(--gris-texto);">${escapeHtml(n.tipo||'')} · ${escapeHtml(n.ciudad||'')}</div>
+          ${n.bloqueado ? '<div style="font-size:11px;font-weight:700;color:#c0392b;">🔒 Bloqueado</div>' : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;width:130px;flex-shrink:0;">
+          <button type="button" class="btn btn-secondary" data-entrar="${n.id}">Entrar →</button>
+          <button type="button" class="btn btn-secondary" data-bloquear="${n.id}" data-bloqueado="${n.bloqueado?'1':'0'}">${n.bloqueado ? '🔓 Desbloquear' : '🔒 Bloquear'}</button>
+          <button type="button" class="btn btn-secondary" data-eliminar="${n.id}" data-nombre="${escapeHtml(n.nombre||'este negocio')}">🗑️ Eliminar</button>
+        </div>
+      </div>
+    `).join('');
+    cont.querySelectorAll('[data-entrar]').forEach(btn=>{
+      btn.addEventListener('click', ()=> entrarComoMaestro(btn.dataset.entrar));
+    });
+    cont.querySelectorAll('[data-bloquear]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const bloquear = btn.dataset.bloqueado === '0';
+        await setDoc(doc(db, 'negocios', btn.dataset.bloquear), { negocio: { bloqueado: bloquear } }, { merge: true });
+        renderPanelMaestro();
+      });
+    });
+    cont.querySelectorAll('[data-eliminar]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const ok = confirm(`¿Eliminar el negocio "${btn.dataset.nombre}"? Se borrarán todos sus datos de forma permanente. Esta acción no se puede deshacer.`);
+        if(!ok) return;
+        await deleteDoc(doc(db, 'negocios', btn.dataset.eliminar));
+        renderPanelMaestro();
+      });
+    });
+  }
+  await renderInvitaciones();
+}
+
+async function entrarComoMaestro(idNegocio){
+  modoMaestro = true;
+  negocioId = idNegocio;
+  rolActual = 'admin';
+  document.body.classList.remove('rol-empleado');
+  document.body.classList.add('modo-maestro');
+  DB = await loadUserDB(negocioId);
   showView('app');
-  switchView(currentView);
+  switchView('inicio');
+}
+
+function volverAPanelMaestro(){
+  modoMaestro = false;
+  negocioId = null; DB = null;
+  document.body.classList.remove('modo-maestro');
+  showView('view-panel-maestro');
+  renderPanelMaestro();
+}
+document.getElementById('banner-modo-maestro').addEventListener('click', volverAPanelMaestro);
+
+document.getElementById('btn-cerrar-sesion-maestro').addEventListener('click', async ()=>{
+  if(confirm('¿Cerrar sesión?')) await signOut(auth);
+});
+
+async function renderInvitaciones(){
+  const cont = document.getElementById('lista-invitaciones');
+  const snap = await getDocs(collection(db, 'invitaciones'));
+  if(snap.empty){
+    cont.innerHTML = '<div class="empty-state">Sin invitaciones pendientes</div>';
+    return;
+  }
+  const filas = [];
+  snap.forEach(d => filas.push({ id: d.id, ...d.data() }));
+  cont.innerHTML = filas.map(f => `
+    <div class="list-item">
+      <div><strong>+57 ${escapeHtml(f.telefono || f.id)}</strong></div>
+      <button type="button" class="btn btn-secondary" data-revocar="${f.id}">Revocar</button>
+    </div>
+  `).join('');
+  cont.querySelectorAll('[data-revocar]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      await deleteDoc(doc(db, 'invitaciones', btn.dataset.revocar));
+      renderInvitaciones();
+    });
+  });
+}
+
+document.getElementById('form-invitar-negocio').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const tel = document.getElementById('inv-telefono').value.trim();
+  if(!/^\d{10}$/.test(tel)){ toast('Ingresa un celular válido (10 dígitos) ⚠️'); return; }
+  await setDoc(doc(db, 'invitaciones', PHONE_PREFIX+tel), { telefono: tel, creado: new Date().toISOString() });
+  document.getElementById('form-invitar-negocio').reset();
+  toast('Invitación creada ✅');
+  renderInvitaciones();
 });
 
 /* ================= PRODUCTOS ================= */
@@ -1732,6 +1848,33 @@ document.getElementById('form-signin').addEventListener('submit', async (e)=>{
     await signInWithEmailAndPassword(auth, telefonoToEmail(telefono), clave);
   }catch(err){
     errBox.textContent = authErrorMessage(err);
+    errBox.hidden = false;
+  }
+});
+
+document.getElementById('btn-login-maestro').addEventListener('click', ()=>{
+  document.getElementById('login-tabs').hidden = true;
+  document.getElementById('form-signin').hidden = true;
+  document.getElementById('form-signup').hidden = true;
+  document.getElementById('form-signin-maestro').hidden = false;
+});
+document.getElementById('btn-login-negocio').addEventListener('click', ()=>{
+  document.getElementById('form-signin-maestro').hidden = true;
+  document.getElementById('login-tabs').hidden = false;
+  document.getElementById('form-signin').hidden = false;
+});
+document.getElementById('form-signin-maestro').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const errBox = document.getElementById('sm-error');
+  errBox.hidden = true;
+  const correo = document.getElementById('sm-correo').value.trim();
+  const clave = document.getElementById('sm-clave').value;
+  try{
+    await signInWithEmailAndPassword(auth, correo, clave);
+  }catch(err){
+    errBox.textContent = err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential'
+      ? 'Correo o contraseña incorrectos.'
+      : 'Ocurrió un error. Intenta de nuevo.';
     errBox.hidden = false;
   }
 });
@@ -3105,6 +3248,7 @@ function renderTopbar(){
   document.getElementById('nav-label-registrar').textContent = DB.negocio?.nombre || 'Registrar';
   document.getElementById('registrar-titulo').textContent = DB.negocio?.nombre || 'Registrar';
   document.getElementById('btn-cierre-caja').textContent = `📋 Cierre de caja — ${new Date().toLocaleDateString('es-CO',{day:'numeric', month:'long'})}`;
+  document.getElementById('banner-modo-maestro').hidden = !modoMaestro;
 }
 
 function renderAll(){
@@ -3176,6 +3320,13 @@ document.getElementById('btn-actualizar-app').addEventListener('click', async ()
   setTimeout(()=> window.location.reload(), 600);
 });
 
+// Link "solo negocio" (?negocio=1): oculta la pestaña "Crear cuenta" — los
+// negocios nuevos solo nacen desde el link maestro, con invitación (ver reglas).
+if(new URLSearchParams(location.search).get('negocio') === '1'){
+  document.getElementById('tab-crear-cuenta')?.remove();
+  document.getElementById('btn-login-maestro')?.remove();
+}
+
 /* ================= BOOT ================= */
 onAuthStateChanged(auth, async (user)=>{
   if(user){
@@ -3190,11 +3341,32 @@ onAuthStateChanged(auth, async (user)=>{
       if(accesoSnap.exists()) acceso = accesoSnap.data();
     }catch(e){ /* sin acceso a la colección o sin conexión: se asume cuenta propia */ }
 
+    // ¿Es la cuenta maestra? Ve y corrige todos los negocios, sin negocio propio.
+    let maestro = false;
+    if(!acceso){
+      try{
+        const maestroSnap = await getDoc(doc(db, 'maestros', user.uid));
+        maestro = maestroSnap.exists();
+      }catch(e){ /* sin acceso a la colección: se asume cuenta normal */ }
+    }
+    if(maestro){
+      esMaestro = true;
+      negocioId = null; DB = null;
+      showView('view-panel-maestro');
+      await renderPanelMaestro();
+      return;
+    }
+
     negocioId = acceso ? acceso.negocioId : user.uid;
     rolActual = acceso ? (acceso.rol || 'empleado') : 'admin';
     document.body.classList.toggle('rol-empleado', rolActual==='empleado');
 
     DB = await loadUserDB(negocioId);
+    if(DB.negocio?.bloqueado){
+      toast('Esta cuenta fue bloqueada por el administrador ⚠️');
+      await signOut(auth);
+      return;
+    }
     if(DB.negocio){
       if(rolActual==='empleado' && necesitaAperturaCajaHoy()){
         showView('view-apertura-caja');
@@ -3214,7 +3386,9 @@ onAuthStateChanged(auth, async (user)=>{
     DB = null;
     negocioId = null;
     rolActual = 'admin';
-    document.body.classList.remove('rol-empleado');
+    esMaestro = false;
+    modoMaestro = false;
+    document.body.classList.remove('rol-empleado', 'modo-maestro');
     showView('view-login');
   }
 });
