@@ -1491,10 +1491,19 @@ document.getElementById('btn-guardar-facturacion').addEventListener('click', ()=
   renderAll();
 });
 
-/* ================= EMPLEADOS (roles) ================= */
+/* ================= EMPLEADOS Y ADMINISTRADORES (roles) ================= */
+function actualizarInfoRolEmpleado(){
+  const rol = document.getElementById('emp-rol').value;
+  document.getElementById('emp-rol-info').textContent = rol==='admin'
+    ? 'Tendrá acceso completo, igual que tú: podrá configurar el negocio, crear otros usuarios y eliminar registros.'
+    : 'Podrá ver los datos del negocio, pero no editar la configuración, eliminar registros ni descargar respaldos.';
+}
+document.getElementById('emp-rol').addEventListener('change', actualizarInfoRolEmpleado);
+
 function abrirModalEmpleado(){
   document.getElementById('form-empleado').reset();
   document.getElementById('emp-error').hidden = true;
+  actualizarInfoRolEmpleado();
   openModal('empleado');
 }
 
@@ -1502,6 +1511,7 @@ document.getElementById('form-empleado').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const errBox = document.getElementById('emp-error');
   errBox.hidden = true;
+  const rol = document.getElementById('emp-rol').value;
   const nombre = document.getElementById('emp-nombre').value.trim();
   const numeroIdentificacion = document.getElementById('emp-identificacion').value.trim();
   const direccion = document.getElementById('emp-direccion').value.trim();
@@ -1518,7 +1528,7 @@ document.getElementById('form-empleado').addEventListener('submit', async (e)=>{
     return;
   }
   if((DB.negocio.empleados||[]).some(emp=>emp.telefono===telefono)){
-    errBox.textContent = 'Ya invitaste a un empleado con ese número de celular.';
+    errBox.textContent = 'Ya invitaste a un usuario con ese número de celular.';
     errBox.hidden = false;
     return;
   }
@@ -1529,16 +1539,16 @@ document.getElementById('form-empleado').addEventListener('submit', async (e)=>{
     const cred = await createUserWithEmailAndPassword(secondaryAuth, telefonoToEmail(telefono), clave);
     usuarioCreado = cred.user;
     await setDoc(doc(db, 'accesos', usuarioCreado.uid), {
-      negocioId, rol: 'empleado', nombre, telefono, creado: new Date().toISOString()
+      negocioId, rol, nombre, telefono, creado: new Date().toISOString()
     });
     await signOut(secondaryAuth);
     DB.negocio.empleados = DB.negocio.empleados || [];
-    DB.negocio.empleados.push({ uid: usuarioCreado.uid, nombre, numeroIdentificacion, direccion, telefono, rol: 'empleado', creado: new Date().toISOString() });
+    DB.negocio.empleados.push({ uid: usuarioCreado.uid, nombre, numeroIdentificacion, direccion, telefono, rol, creado: new Date().toISOString() });
     DB.negocio.empleadosUids = DB.negocio.empleados.map(e=>e.uid);
-    registrarCambio('Empleados', 'Crear', `Invitó a "${nombre}" como empleado`);
+    registrarCambio('Empleados', 'Crear', `Invitó a "${nombre}" como ${rol==='admin' ? 'administrador' : 'empleado'}`);
     saveDB();
     closeModals();
-    toast('Empleado agregado ✅');
+    toast('Usuario agregado ✅');
     renderAll();
   }catch(err){
     // si la cuenta llegó a crearse pero el resto falló (p.ej. faltan permisos en Firestore),
@@ -1548,7 +1558,7 @@ document.getElementById('form-empleado').addEventListener('submit', async (e)=>{
       try{ await signOut(secondaryAuth); }catch(e2){ /* ignorar */ }
     }
     if(err.code==='permission-denied'){
-      errBox.textContent = 'Tu negocio necesita que se actualicen las reglas de seguridad de Firestore para poder agregar empleados. Pide ayuda técnica para activar esta función.';
+      errBox.textContent = 'Tu negocio necesita que se actualicen las reglas de seguridad de Firestore para poder agregar usuarios. Pide ayuda técnica para activar esta función.';
     } else {
       errBox.textContent = authErrorMessage(err);
     }
@@ -1578,15 +1588,17 @@ function renderEmpleados(){
     cont.innerHTML = '<div class="empty-state">Todavía no has agregado empleados</div>';
     return;
   }
-  cont.innerHTML = empleados.map(emp=>`
-    <div class="empleado-row">
+  cont.innerHTML = empleados.map(emp=>{
+    const esAdminEmp = emp.rol==='admin';
+    return `<div class="empleado-row">
       <div class="li-main">
-        <span class="li-title">${escapeHtml(emp.nombre)}<span class="rol-tag">Empleado</span></span>
+        <span class="li-title">${escapeHtml(emp.nombre)}<span class="rol-tag${esAdminEmp ? ' rol-admin' : ''}">${esAdminEmp ? 'Administrador' : 'Empleado'}</span></span>
         <span class="li-sub">+57 ${escapeHtml(emp.telefono)}${emp.numeroIdentificacion ? ` · CC ${escapeHtml(emp.numeroIdentificacion)}` : ''}</span>
         ${emp.direccion ? `<span class="li-sub">${escapeHtml(emp.direccion)}</span>` : ''}
       </div>
       <button data-accion="eliminar-empleado" data-id="${emp.uid}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Quitar acceso</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 document.getElementById('lista-empleados').addEventListener('click', (e)=>{
   const btn = e.target.closest('[data-accion="eliminar-empleado"]');
@@ -2913,8 +2925,16 @@ function renderPerfil(){
   document.getElementById('pf-rango-hasta').value = DB.negocio.rangoHasta||'';
   document.getElementById('pf-ciiu').value = DB.negocio.ciiu||'';
   document.getElementById('pf-agente-iva').value = DB.negocio.agenteIva||'No';
-  const rolTxt = rolActual==='empleado' ? ' · Rol: Empleado' : ' · Rol: Administrador';
-  document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada con el celular ${emailToTelefono(currentUser.email)}${rolTxt}` : '';
+  document.getElementById('pf-correo-actual').textContent = currentUser?.email ? `Sesión iniciada con el celular ${emailToTelefono(currentUser.email)}` : '';
+
+  const esRolEmpleado = rolActual==='empleado';
+  const badge = document.getElementById('pf-rol-badge');
+  badge.textContent = esRolEmpleado ? 'Empleado' : 'Administrador';
+  badge.classList.toggle('rol-admin', !esRolEmpleado);
+  document.getElementById('pf-rol-desc').textContent = esRolEmpleado
+    ? 'Puedes registrar ventas, gastos y compras, pero no puedes cambiar la configuración del negocio, eliminar registros ni descargar respaldos.'
+    : 'Tienes acceso completo: puedes configurar el negocio, crear otros usuarios (empleados o administradores) y eliminar registros.';
+
   renderEmpleados();
 }
 

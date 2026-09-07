@@ -445,6 +445,14 @@
       <section id="view-perfil" class="view" hidden>
         <h2>Perfil</h2>
 
+        <div class="profile-card" id="pf-rol-card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <h3 style="margin-bottom:2px;">Tu perfil en este negocio</h3>
+            <p id="pf-rol-desc" style="margin:0;font-size:12px;"></p>
+          </div>
+          <span class="rol-tag" id="pf-rol-badge" style="font-size:13px;padding:6px 14px;">Administrador</span>
+        </div>
+
         <div class="profile-card solo-admin">
           <h3>Datos del negocio</h3>
           <label>Tu nombre (para saludarte)
@@ -507,10 +515,10 @@
         </div>
 
         <div class="profile-card solo-admin">
-          <h3>👥 Empleados</h3>
-          <p>Da acceso a tus empleados para que registren ventas, gastos y compras sin ver ni cambiar la configuración del negocio.</p>
+          <h3>👥 Empleados y administradores</h3>
+          <p>Da acceso a otras personas a este negocio: como empleados (sin poder editar la configuración ni eliminar registros) o como administradores (con los mismos permisos que tú).</p>
           <div id="lista-empleados"></div>
-          <button class="btn btn-secondary btn-block" data-open="empleado">+ Agregar empleado</button>
+          <button class="btn btn-secondary btn-block" data-open="empleado">+ Agregar usuario</button>
         </div>
 
         <div class="profile-card">
@@ -1129,13 +1137,20 @@
     </div>
 
     <div class="modal" id="modal-empleado" hidden>
-      <div class="modal-header"><h3>👥 Agregar empleado</h3><button class="modal-close">✕</button></div>
+      <div class="modal-header"><h3>👥 Agregar usuario</h3><button class="modal-close">✕</button></div>
       <form id="form-empleado">
-        <label>Nombre del empleado
+        <label>Tipo de perfil
+          <select id="emp-rol">
+            <option value="empleado">Empleado</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </label>
+        <p class="info-box full-w" id="emp-rol-info">Podrá ver los datos del negocio, pero no editar la configuración, eliminar registros ni descargar respaldos.</p>
+        <label>Nombre
           <input type="text" id="emp-nombre" required>
         </label>
         <label>Número de identificación
-          <input type="text" id="emp-identificacion" placeholder="Cédula del empleado">
+          <input type="text" id="emp-identificacion" placeholder="Cédula">
         </label>
         <label>Dirección
           <input type="text" id="emp-direccion" placeholder="Dirección de residencia">
@@ -1149,9 +1164,8 @@
         <label>Contraseña de acceso (6 dígitos)
           <input type="password" id="emp-clave" inputmode="numeric" pattern="\d{6}" maxlength="6" required>
         </label>
-        <p style="font-size:12px;">El empleado podrá iniciar sesión con este celular y contraseña, y ver los datos de tu negocio, pero no podrá editar la configuración, eliminar registros ni descargar respaldos.</p>
         <p class="form-error" id="emp-error" hidden></p>
-        <button type="submit" class="btn btn-primary btn-block btn-lg" id="emp-submit-btn">Agregar empleado</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="emp-submit-btn">Agregar usuario</button>
       </form>
     </div>
 
