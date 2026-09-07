@@ -1072,19 +1072,29 @@ function renderPorPagar(){
     const vencida = c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date();
     const abonado = totalAbonado(c);
     const saldo = saldoFactura(c);
-    return `<div class="list-item">
-      <div class="li-main">
-        <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}</span>
-        <span class="li-sub">${fmtDate(c.fecha)}${c.numeroFacturaProveedor ? ` · ${escapeHtml(c.numeroFacturaProveedor)}` : ''}${c.fechaVencimiento ? ` · Vence: ${fmtDate(c.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
-        ${abonado>0 ? `<span class="li-sub">Total ${money(c.total)} · Abonado ${money(abonado)}</span>` : ''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-        <span class="li-value neg">${money(saldo)}</span>
-        <div style="display:flex;gap:6px;">
-          <button data-accion="abonar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Abonar</button>
-          <button data-accion="marcar-compra-pagada" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+    const historialAbonos = (c.abonos||[]).length ? `
+      <div style="margin:4px 0 0;padding-left:8px;border-left:2px solid var(--borde);">
+        ${c.abonos.map(ab=>`<div class="li-sub" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <span>💵 ${fmtDate(ab.fecha)} — ${money(ab.valor)}</span>
+          ${esAdmin() ? `<button data-accion="eliminar-abono-compra" data-doc-id="${c.id}" data-abono-id="${ab.id}" class="btn btn-secondary" style="padding:2px 8px;font-size:10px;">Cancelar</button>` : ''}
+        </div>`).join('')}
+      </div>` : '';
+    return `<div class="list-item" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div class="li-main">
+          <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}</span>
+          <span class="li-sub">${fmtDate(c.fecha)}${c.numeroFacturaProveedor ? ` · ${escapeHtml(c.numeroFacturaProveedor)}` : ''}${c.fechaVencimiento ? ` · Vence: ${fmtDate(c.fechaVencimiento)}` : ''}${vencida ? ' ⚠️ Vencida' : ''}</span>
+          ${abonado>0 ? `<span class="li-sub">Total ${money(c.total)} · Abonado ${money(abonado)}</span>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <span class="li-value neg">${money(saldo)}</span>
+          <div style="display:flex;gap:6px;">
+            <button data-accion="abonar-compra" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Abonar</button>
+            <button data-accion="marcar-compra-pagada" data-id="${c.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+          </div>
         </div>
       </div>
+      ${historialAbonos}
     </div>`;
   }).join('');
 }
@@ -1093,6 +1103,7 @@ document.getElementById('lista-por-pagar').addEventListener('click', (e)=>{
   if(!btn) return;
   if(btn.dataset.accion==='marcar-compra-pagada') marcarCompraPagada(btn.dataset.id);
   if(btn.dataset.accion==='abonar-compra') abrirModalAbono('compra', btn.dataset.id);
+  if(btn.dataset.accion==='eliminar-abono-compra') eliminarAbono('compra', btn.dataset.docId, btn.dataset.abonoId);
 });
 
 function renderPagosRealizados(){
@@ -1171,12 +1182,22 @@ function abrirCarteraDetalle(tipo){
     const diasTxt = dias===null ? 'Sin fecha de vencimiento'
       : tipo==='vencida' ? `Vencida hace ${Math.abs(dias)} día(s)`
       : `Vence en ${dias} día(s)`;
-    return `<div class="list-item">
-      <div class="li-main">
-        <span class="li-title">${escapeHtml(cliente?.nombres||cliente?.nombre||'(sin nombre)')} · Factura No. ${v.numeroFactura}</span>
-        <span class="li-sub">${fmtDate(v.fecha)} · ${diasTxt}</span>
+    const abonado = totalAbonado(v);
+    return `<div class="list-item" style="flex-direction:column;align-items:stretch;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div class="li-main">
+          <span class="li-title">${escapeHtml(cliente?.nombres||cliente?.nombre||'(sin nombre)')} · Factura No. ${v.numeroFactura}</span>
+          <span class="li-sub">${fmtDate(v.fecha)} · ${diasTxt}</span>
+          ${abonado>0 ? `<span class="li-sub">Total ${money(v.total)} · Abonado ${money(abonado)}</span>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <span class="li-value ${tipo==='vencida'?'neg':''}">${money(saldo)}</span>
+          <div style="display:flex;gap:6px;">
+            <button data-accion="abonar-venta" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Abonar</button>
+            <button data-accion="marcar-pagada" data-id="${v.id}" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;">Marcar pagada</button>
+          </div>
+        </div>
       </div>
-      <span class="li-value ${tipo==='vencida'?'neg':''}">${money(saldo)}</span>
     </div>`;
   }).join('') : '<div class="empty-state">Sin facturas en esta categoría 🎉</div>';
 
@@ -1206,10 +1227,17 @@ function renderAbonosClientes(){
         <span class="li-title">${escapeHtml(cliente?.nombres||cliente?.nombre||'(sin nombre)')} · Factura No. ${a.venta.numeroFactura}</span>
         <span class="li-sub">${fmtDateTime(a.fecha)}</span>
       </div>
-      <span class="li-value">${money(a.valor)}</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="li-value">${money(a.valor)}</span>
+        ${esAdmin() ? `<button data-accion="eliminar-abono-venta" data-doc-id="${a.venta.id}" data-abono-id="${a.id}" class="btn btn-secondary" style="padding:2px 8px;font-size:10px;">Cancelar</button>` : ''}
+      </div>
     </div>`;
   }).join('');
 }
+document.getElementById('lista-abonos-clientes').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion="eliminar-abono-venta"]');
+  if(btn) eliminarAbono('venta', btn.dataset.docId, btn.dataset.abonoId);
+});
 
 function renderAbonosProveedores(){
   const cont = document.getElementById('lista-abonos-proveedores');
@@ -1230,10 +1258,17 @@ function renderAbonosProveedores(){
         <span class="li-title">${proveedor ? escapeHtml(proveedor.nombre) : 'Proveedor eliminado'}${a.compra.numeroFacturaProveedor ? ` · ${escapeHtml(a.compra.numeroFacturaProveedor)}` : ''}</span>
         <span class="li-sub">${fmtDateTime(a.fecha)}</span>
       </div>
-      <span class="li-value">${money(a.valor)}</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="li-value">${money(a.valor)}</span>
+        ${esAdmin() ? `<button data-accion="eliminar-abono-compra" data-doc-id="${a.compra.id}" data-abono-id="${a.id}" class="btn btn-secondary" style="padding:2px 8px;font-size:10px;">Cancelar</button>` : ''}
+      </div>
     </div>`;
   }).join('');
 }
+document.getElementById('lista-abonos-proveedores').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-accion="eliminar-abono-compra"]');
+  if(btn) eliminarAbono('compra', btn.dataset.docId, btn.dataset.abonoId);
+});
 
 function renderCuentas(){
   renderDeudores();
@@ -2058,11 +2093,13 @@ function renderHistorialMensual(){
 
 /* ================= DASHBOARD FINANCIERO (dinámico) ================= */
 function claveBucket(fechaISO, gran){
+  if(gran==='año') return String(new Date(fechaISO).getFullYear());
   if(gran==='semana') return startOfWeek(new Date(fechaISO)).toISOString().slice(0,10);
   if(gran==='mes') return mesKey(fechaISO);
   return new Date(fechaISO).toISOString().slice(0,10);
 }
 function etiquetaBucket(key, gran){
+  if(gran==='año') return key;
   if(gran==='semana'){
     const ini = new Date(key+'T00:00:00');
     const fin = new Date(ini); fin.setDate(fin.getDate()+6);
@@ -2072,6 +2109,7 @@ function etiquetaBucket(key, gran){
   return fmtDate(key+'T00:00:00');
 }
 function etiquetaCortaBucket(key, gran){
+  if(gran==='año') return key;
   if(gran==='mes'){
     const d = new Date(key+'-01T00:00:00');
     return d.toLocaleDateString('es-CO',{month:'short'});
@@ -2079,6 +2117,11 @@ function etiquetaCortaBucket(key, gran){
   const d = new Date(key+'T00:00:00');
   return String(d.getDate());
 }
+
+let dashLineChart = null;
+let dashDonutGanancia = null;
+let dashDonutCategoria = null;
+const DASH_COLORES_RANK = ['#ff2e63','#7b2ff7','#ff8a00','#00c2d9','#00e0a3','#ffd166'];
 
 function renderDashboard(){
   const contKpis = document.getElementById('dash-kpis');
@@ -2112,12 +2155,12 @@ function renderDashboard(){
   const ticketProm = ventas.length ? totalVentas/ventas.length : 0;
 
   contKpis.innerHTML = `
-    <div class="card card-green"><span class="card-icon">💰</span><span class="card-label">Ventas</span><span class="card-value">${money(totalVentas)}</span></div>
-    <div class="card card-yellow"><span class="card-icon">🧾</span><span class="card-label">Gastos</span><span class="card-value">${money(totalGastos)}</span></div>
-    <div class="card card-blue"><span class="card-icon">📈</span><span class="card-label">Ganancia</span><span class="card-value">${money(ganancia)}</span></div>
-    <div class="card card-dark"><span class="card-icon">🧾</span><span class="card-label">Compras</span><span class="card-value">${money(totalCompras)}</span></div>
-    <div class="card card-green"><span class="card-icon">🧮</span><span class="card-label"># Facturas</span><span class="card-value">${ventas.length}</span></div>
-    <div class="card card-blue"><span class="card-icon">🎟️</span><span class="card-label">Ticket promedio</span><span class="card-value">${money(ticketProm)}</span></div>
+    <div class="dash-kpi-card"><span class="dash-kpi-icon dash-accent-pink">💰</span><span class="dash-kpi-label">Ventas</span><span class="dash-kpi-value">${money(totalVentas)}</span></div>
+    <div class="dash-kpi-card"><span class="dash-kpi-icon dash-accent-orange">🧾</span><span class="dash-kpi-label">Gastos</span><span class="dash-kpi-value">${money(totalGastos)}</span></div>
+    <div class="dash-kpi-card"><span class="dash-kpi-icon dash-accent-cyan">📈</span><span class="dash-kpi-label">Ganancia</span><span class="dash-kpi-value">${money(ganancia)}</span></div>
+    <div class="dash-kpi-card"><span class="dash-kpi-icon dash-accent-purple">🧾</span><span class="dash-kpi-label">Compras</span><span class="dash-kpi-value">${money(totalCompras)}</span></div>
+    <div class="dash-kpi-card"><span class="dash-kpi-icon dash-accent-pink">🧮</span><span class="dash-kpi-label"># Facturas</span><span class="dash-kpi-value">${ventas.length}</span></div>
+    <div class="dash-kpi-card"><span class="dash-kpi-icon dash-accent-cyan">🎟️</span><span class="dash-kpi-label">Ticket promedio</span><span class="dash-kpi-value">${money(ticketProm)}</span></div>
   `;
 
   const buckets = {};
@@ -2131,15 +2174,40 @@ function renderDashboard(){
   compras.forEach(c=> registrarBucket(c.fecha,'compras', c.total));
   const keys = Object.keys(buckets).sort();
 
-  const chart = document.getElementById('dash-chart');
-  if(keys.length===0){
-    chart.innerHTML = '<div class="empty-state">Sin movimientos en el rango seleccionado</div>';
-  } else {
-    const max = Math.max(...keys.map(k=>buckets[k].ventas), 1);
-    chart.innerHTML = keys.map(k=>{
-      const h = Math.max(4, Math.round((buckets[k].ventas/max)*100));
-      return `<div class="bar-col"><div class="bar" style="height:${h}%" title="${money(buckets[k].ventas)}"></div><span>${escapeHtml(etiquetaCortaBucket(k,gran))}</span></div>`;
-    }).join('');
+  const canvasLine = document.getElementById('dash-line-canvas');
+  if(canvasLine && typeof Chart !== 'undefined'){
+    const labels = keys.map(k=>etiquetaCortaBucket(k,gran));
+    const dataVentas = keys.map(k=>buckets[k].ventas);
+    const ctx = canvasLine.getContext('2d');
+    const gradiente = ctx.createLinearGradient(0,0,0,200);
+    gradiente.addColorStop(0,'rgba(255,46,99,0.45)');
+    gradiente.addColorStop(1,'rgba(255,46,99,0)');
+    if(dashLineChart) dashLineChart.destroy();
+    dashLineChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets:[{ data:dataVentas, borderColor:'#ff2e63', backgroundColor:gradiente, fill:true, tension:0.35, pointRadius:0, borderWidth:3 }] },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>money(c.parsed.y)}} },
+        scales:{
+          x:{ ticks:{color:'#a99fc9', maxRotation:0, autoSkip:true}, grid:{display:false} },
+          y:{ ticks:{color:'#a99fc9', callback:(v)=>money(v)}, grid:{color:'rgba(255,255,255,0.06)'} }
+        }
+      }
+    });
+  }
+
+  const margenPct = totalVentas>0 ? Math.round((ganancia/totalVentas)*100) : 0;
+  const margenClamped = Math.max(0, Math.min(100, margenPct));
+  document.getElementById('dash-donut-ganancia-pct').textContent = `${margenPct}%`;
+  const canvasD1 = document.getElementById('dash-donut-ganancia');
+  if(canvasD1 && typeof Chart !== 'undefined'){
+    if(dashDonutGanancia) dashDonutGanancia.destroy();
+    dashDonutGanancia = new Chart(canvasD1.getContext('2d'), {
+      type:'doughnut',
+      data:{ datasets:[{ data:[margenClamped, 100-margenClamped], backgroundColor:['#7b2ff7','rgba(255,255,255,0.08)'], borderWidth:0 }] },
+      options:{ cutout:'75%', plugins:{legend:{display:false}, tooltip:{enabled:false}} }
+    });
   }
 
   const matriz = document.getElementById('dash-matriz');
@@ -2176,10 +2244,28 @@ function renderDashboard(){
       <tbody>${topProductos.map(([n,d])=>`<tr><td>${escapeHtml(n)}</td><td class="num">${d.cantidad}</td><td class="num">${money(d.total)}</td></tr>`).join('')}</tbody>
     </table></div>` : '<div class="empty-state">Sin ventas en el rango seleccionado</div>';
 
-  document.getElementById('dash-top-categorias').innerHTML = topCategorias.length ? `<div class="data-table-wrap"><table class="data-table">
-      <thead><tr><th>Categoría</th><th class="num">Cant.</th><th class="num">Total vendido</th></tr></thead>
-      <tbody>${topCategorias.map(([n,d])=>`<tr><td>${escapeHtml(n)}</td><td class="num">${d.cantidad}</td><td class="num">${money(d.total)}</td></tr>`).join('')}</tbody>
-    </table></div>` : '<div class="empty-state">Sin ventas en el rango seleccionado</div>';
+  const topCat = topCategorias[0];
+  const catPct = totalVentas>0 && topCat ? Math.round((topCat[1].total/totalVentas)*100) : 0;
+  document.getElementById('dash-donut-categoria-pct').textContent = `${catPct}%`;
+  document.getElementById('dash-donut-categoria-label').textContent = topCat ? topCat[0] : 'Sin datos';
+  const canvasD2 = document.getElementById('dash-donut-categoria');
+  if(canvasD2 && typeof Chart !== 'undefined'){
+    if(dashDonutCategoria) dashDonutCategoria.destroy();
+    dashDonutCategoria = new Chart(canvasD2.getContext('2d'), {
+      type:'doughnut',
+      data:{ datasets:[{ data:[catPct, 100-catPct], backgroundColor:['#ff8a00','rgba(255,255,255,0.08)'], borderWidth:0 }] },
+      options:{ cutout:'75%', plugins:{legend:{display:false}, tooltip:{enabled:false}} }
+    });
+  }
+
+  const maxCatTotal = topCategorias.length ? topCategorias[0][1].total : 1;
+  document.getElementById('dash-rank-categorias').innerHTML = topCategorias.length ? topCategorias.slice(0,6).map(([n,d],i)=>{
+    const pct = Math.round((d.total/maxCatTotal)*100);
+    return `<div class="dash-rank-item">
+      <div class="dash-rank-top"><span>${escapeHtml(n)}</span><span>${money(d.total)}</span></div>
+      <div class="dash-rank-bar-bg"><div class="dash-rank-bar-fill" style="width:${pct}%;background:${DASH_COLORES_RANK[i%DASH_COLORES_RANK.length]};"></div></div>
+    </div>`;
+  }).join('') : '<div class="empty-state">Sin ventas en el rango seleccionado</div>';
 
   const q1 = {}, q2 = {};
   ventas.forEach(v=>{
@@ -2291,7 +2377,10 @@ function verDeudaCliente(clienteId){
     const saldo = saldoFactura(v);
     const historialAbonos = (v.abonos||[]).length ? `
       <div style="margin:4px 0 8px;padding-left:8px;border-left:2px solid var(--borde);">
-        ${v.abonos.map(ab=>`<div class="li-sub">💵 ${fmtDate(ab.fecha)} — ${money(ab.valor)}</div>`).join('')}
+        ${v.abonos.map(ab=>`<div class="li-sub" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <span>💵 ${fmtDate(ab.fecha)} — ${money(ab.valor)}</span>
+          ${esAdmin() ? `<button data-accion="eliminar-abono-venta" data-doc-id="${v.id}" data-abono-id="${ab.id}" class="btn btn-secondary" style="padding:2px 8px;font-size:10px;">Cancelar</button>` : ''}
+        </div>`).join('')}
       </div>` : '';
     return `<div class="list-item" style="flex-direction:column;align-items:stretch;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
@@ -2360,6 +2449,28 @@ function abrirModalAbono(tipo, docId){
   openModal('abono');
 }
 
+function eliminarAbono(tipo, docId, abonoId){
+  if(!esAdmin()){ toast('Solo el administrador puede cancelar un abono ⚠️'); return; }
+  const doc = tipo==='venta' ? DB.ventas.find(v=>v.id===docId) : DB.compras.find(c=>c.id===docId);
+  if(!doc || !doc.abonos) return;
+  const abono = doc.abonos.find(a=>a.id===abonoId);
+  if(!abono) return;
+  if(!confirm(`¿Cancelar este abono de ${money(abono.valor)}? Podrás registrarlo de nuevo con el valor correcto.`)) return;
+  doc.abonos = doc.abonos.filter(a=>a.id!==abonoId);
+  if(doc.pagada && saldoFactura(doc) > 0){
+    doc.pagada = false;
+    doc.fechaPago = null;
+  }
+  const entidad = tipo==='venta'
+    ? (()=>{ const c = DB.clientes.find(x=>x.id===doc.clienteId); return c ? (c.nombres||c.nombre) : 'Consumidor final'; })()
+    : (()=>{ const p = DB.proveedores.find(x=>x.id===doc.proveedorId); return p ? p.nombre : 'Proveedor eliminado'; })();
+  registrarCambio(tipo==='venta' ? 'Venta' : 'Compra', 'Cancelar abono', `Canceló un abono de ${money(abono.valor)} de ${entidad}`);
+  saveDB();
+  closeModals();
+  renderAll();
+  toast('Abono cancelado ✅');
+}
+
 document.getElementById('form-abono').addEventListener('submit', (e)=>{
   e.preventDefault();
   const tipo = document.getElementById('ab-tipo').value;
@@ -2401,6 +2512,8 @@ document.getElementById('detalle-body').addEventListener('click', (e)=>{
   if(btnPagar) marcarVentaPagada(btnPagar.dataset.id);
   const btnAbonar = e.target.closest('[data-accion="abonar-venta"]');
   if(btnAbonar) abrirModalAbono('venta', btnAbonar.dataset.id);
+  const btnCancelarAbono = e.target.closest('[data-accion="eliminar-abono-venta"]');
+  if(btnCancelarAbono) eliminarAbono('venta', btnCancelarAbono.dataset.docId, btnCancelarAbono.dataset.abonoId);
 });
 
 /* ================= CIERRE DE CAJA ================= */
